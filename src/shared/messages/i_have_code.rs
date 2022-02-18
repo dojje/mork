@@ -4,7 +4,7 @@ use super::Message;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct IHaveCode {
-    pub code: &'static str,
+    pub code: String,
     pub in_port: u16,
     pub out_port: u16,
 }
@@ -24,7 +24,7 @@ impl Message for IHaveCode {
             return Err("not good msg");
         }
 
-        let have_file: Self = match bincode::deserialize(&raw[1..]) {
+        let have_file: Self = match bincode::deserialize(&raw) {
             Ok(v) => v,
             Err(_) => return Err("deserialising failed"),
         };

@@ -1,14 +1,17 @@
-use std::{io::Write, io, collections::HashMap, sync::mpsc::Sender, net::SocketAddr};
+use std::{io::Write, collections::HashMap, sync::mpsc::Sender, net::SocketAddr, error::Error, mem::size_of_val};
 use chrono::Local;
 use colored::Colorize;
 use env_logger::Builder;
 use log::{LevelFilter, info};
-use shared::{messages::{ClientMsg, have_file::HaveFile, Message}, ClientAddr};
+use shared::{messages::{ClientMsg, have_file::HaveFile, Message, i_have_code::{IHaveCode}, you_have_file::YouHaveFile}, ClientAddr};
 use tokio::{net::UdpSocket, sync::mpsc::channel};
 
 fn get_msg_from_raw(raw: &[u8]) -> Result<ClientMsg, &'static str> {
     if let Ok(have_file) = HaveFile::from_raw(raw) {
         Ok(ClientMsg::HaveFile(have_file))
+    }
+    else if let Ok(i_have_code) = IHaveCode::from_raw(raw) {
+        Ok(ClientMsg::IHaveCode(i_have_code))
     }
 
     else {
@@ -16,8 +19,17 @@ fn get_msg_from_raw(raw: &[u8]) -> Result<ClientMsg, &'static str> {
     }
 }
 
+fn new_code(code_map: &HashMap<&'static str, ClientAddr>) -> Result<&'static str, &'static str> {
+    let code = "asdf";
+    loop {
+        if !code_map.contains_key(code) {
+            return Ok(code);
+        }
+    }
+}
+
 #[tokio::main]
-async fn main() -> io::Result<()> {
+async fn main() -> Result<(), Box<dyn Error>> {
     Builder::new()
         .format(|buf, record| {
             writeln!(buf,
@@ -42,7 +54,17 @@ async fn main() -> io::Result<()> {
 
         let msg_buf = &buf[0..amt];
 
-        let msg = get_msg_from_raw(msg_buf);
+        let msg = get_msg_from_raw(msg_buf)?;
+        match msg {
+            ClientMsg::HaveFile(have_file) => {
+                let addr = have_file.to_addr(src);
+                let code = new_code(&code_map)?;
+
+                let resp = YouHaveFile::new(code);
+
+            },
+            ClientMsg::IHaveCode(_) => todo!(),
+        }
 
     }
 }

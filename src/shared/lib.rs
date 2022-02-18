@@ -4,6 +4,6 @@ pub mod messages;
 
 pub struct ClientAddr {
     pub addr: SocketAddr,
-    pub port_in: u16,
-    pub port_out: u16,
+    pub in_port: u16,
+    pub out_port: u16,
 }
