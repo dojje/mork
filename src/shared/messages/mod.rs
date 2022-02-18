@@ -1,6 +1,3 @@
-use std::io::{Error, self, Result};
-
-
 // From giver client
 pub mod have_file;
 
@@ -23,7 +20,7 @@ pub enum ServerMsg {
     TakerIp(taker_ip::TakerIp)
 }
 
-trait Message {
-    fn to_slice(&self) -> Result<&[u8]>;
-    fn from_slice(slice: &[u8]) -> Self;
+pub trait Message {
+    fn to_raw(&self) -> Vec<u8>;
+    fn from_raw(slice: &'static [u8]) -> Result<Self, &'static str> where Self: Sized;
 }

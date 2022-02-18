@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 pub mod messages;
 
 pub struct ClientAddr {
-    addr: SocketAddr,
-    port_in: u16,
-    port_out: u16,
+    pub addr: SocketAddr,
+    pub port_in: u16,
+    pub port_out: u16,
 }

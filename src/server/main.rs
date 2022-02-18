@@ -3,8 +3,18 @@ use chrono::Local;
 use colored::Colorize;
 use env_logger::Builder;
 use log::{LevelFilter, info};
-use shared::ClientAddr;
+use shared::{messages::{ClientMsg, have_file::HaveFile, Message}, ClientAddr};
 use tokio::{net::UdpSocket, sync::mpsc::channel};
+
+fn get_msg_from_raw(raw: &[u8]) -> Result<ClientMsg, &'static str> {
+    if let Ok(have_file) = HaveFile::from_raw(raw) {
+        Ok(ClientMsg::HaveFile(have_file))
+    }
+
+    else {
+        Err("could not make into any message")
+    }
+}
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
@@ -32,7 +42,7 @@ async fn main() -> io::Result<()> {
 
         let msg_buf = &buf[0..amt];
 
-        
+        let msg = get_msg_from_raw(msg_buf);
 
     }
 }
