@@ -8,3 +8,11 @@ use super::Message;
 pub struct IHaveCode {
     pub code: String,
 }
+
+impl IHaveCode {
+    pub fn new(code: String) -> Self {
+        Self {
+            code
+        }
+    }
+}
