@@ -9,6 +9,4 @@ use super::Message;
 #[message(msg_code = 3)]
 pub struct TakerIp {
     pub ip: SocketAddr,
-    pub taker_in: u16,
-    pub taker_out: u16
 }

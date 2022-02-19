@@ -2,8 +2,17 @@ use std::net::SocketAddr;
 
 pub mod messages;
 
-pub struct ClientAddr {
-    pub addr: SocketAddr,
-    pub in_port: u16,
-    pub out_port: u16,
+#[derive(Clone)]
+pub struct Transfer {
+    file_haver: SocketAddr,
+    file_name: String,
+}
+
+impl Transfer {
+    pub fn new(file_haver: SocketAddr, file_name: String) -> Self {
+        Self {
+            file_haver,
+            file_name,
+        }
+    }
 }
