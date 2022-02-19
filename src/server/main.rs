@@ -20,7 +20,7 @@ fn get_msg_from_raw(raw: &[u8]) -> Result<ClientMsg, &'static str> {
 }
 
 fn new_code<T>(code_map: &HashMap<&'static str, T>) -> Result<&'static str, &'static str> {
-    let code = "asdf";
+    let code = "asdfhejemil";
     loop {
         if !code_map.contains_key(code) {
             return Ok(code);
@@ -55,6 +55,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let mut buf = [0u8;8192];
         let (amt, src) = sock.recv_from(&mut buf).await?;
         let msg_buf = &buf[0..amt];
+
+        // TODO Spawn new thread for every message
 
         match get_msg_from_raw(msg_buf)?{
             ClientMsg::HaveFile(have_file) => {
