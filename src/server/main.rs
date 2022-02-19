@@ -3,7 +3,7 @@ use chrono::Local;
 use colored::Colorize;
 use env_logger::Builder;
 use log::{LevelFilter, info};
-use shared::{messages::{ClientMsg, have_file::HaveFile, Message, i_have_code::{IHaveCode}, you_have_file::YouHaveFile}, ClientAddr};
+use shared::{messages::{ClientMsg, i_have_code::IHaveCode, Message, have_file::HaveFile, you_have_file::YouHaveFile}, ClientAddr};
 use tokio::{net::UdpSocket, sync::mpsc::channel};
 
 fn get_msg_from_raw(raw: &[u8]) -> Result<ClientMsg, &'static str> {
@@ -60,7 +60,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 let addr = have_file.to_addr(src);
                 let code = new_code(&code_map)?;
 
-                let resp = YouHaveFile::new(code);
+                let resp = YouHaveFile::new(code.to_string());
 
             },
             ClientMsg::IHaveCode(_) => todo!(),
