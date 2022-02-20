@@ -10,3 +10,11 @@ use super::Message;
 pub struct TakerIp {
     pub ip: SocketAddr,
 }
+
+impl TakerIp {
+    pub fn new(ip: SocketAddr) -> Self {
+        Self {
+            ip,
+        }
+    }
+}

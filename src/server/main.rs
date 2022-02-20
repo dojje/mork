@@ -3,7 +3,7 @@ use chrono::Local;
 use colored::Colorize;
 use env_logger::Builder;
 use log::{LevelFilter, info};
-use shared::{messages::{ClientMsg, i_have_code::IHaveCode, Message, have_file::HaveFile, you_have_file::YouHaveFile, ip_for_code::IpForCode}, Transfer};
+use shared::{messages::{ClientMsg, i_have_code::IHaveCode, Message, have_file::HaveFile, you_have_file::YouHaveFile, ip_for_code::IpForCode, taker_ip::TakerIp}, Transfer};
 use tokio::{net::UdpSocket};
 
 fn get_msg_from_raw(raw: &[u8]) -> Result<ClientMsg, &'static str> {
@@ -81,6 +81,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     Some(transfer) => transfer,
                     None => continue, // TODO Send error message to client
                 };
+
+                // Send taker ip to giver
+                let taker_ip = TakerIp::new(src);
+                sock.send_to(&taker_ip.to_raw(), transfer.file_haver).await?;
 
                 let resp = IpForCode::from_transfer(transfer.clone());
                 let resp_raw = resp.to_raw();

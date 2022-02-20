@@ -7,8 +7,8 @@ pub mod messages;
 
 #[derive(Clone)]
 pub struct Transfer {
-    file_haver: SocketAddr,
-    file_name: String,
+    pub file_haver: SocketAddr,
+    pub file_name: String,
 }
 
 impl Transfer {
