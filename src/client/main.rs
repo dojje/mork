@@ -1,4 +1,4 @@
-use std::{net::{SocketAddr}, error::Error, fs::{File, self}, io::Write, path::Path, vec, str::FromStr};
+use std::{net::{SocketAddr}, error::Error, fs::{File, self}, io::Write, path::Path, vec, str::FromStr, thread, time::Duration};
 
 use chrono::Local;
 use colored::Colorize;
@@ -43,6 +43,9 @@ struct Args {
     /// Must be set if it should recieve files
     #[clap(short, long)]
     code: Option<String>,
+
+    #[clap(short, long)]
+    input: Option<String>,
 }
 
 fn _get_msg_from_raw(raw: &[u8]) -> Result<ServerMsg, &'static str> {
@@ -110,6 +113,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let server_addr = SocketAddr::from_str(config.server_ips[0].as_str())?;
     info!("server ip is {}", server_addr);
 
+    // Get input file
+
     // Come up with port
     let mut rng = rand::thread_rng();
     let port: u16 = rng.gen_range(8192..u16::MAX);
@@ -119,11 +124,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     info!("binding to addr");
     let sock = UdpSocket::bind(addr).await?;
     
-    match args.action {
-        Action::Give => {
+    match (args.action, args.input) {
+        (Action::Give, Some(input)) => {
             sender("hey_guys.txt", sock, server_addr).await?;
         },
-        Action::Take => {
+        (Action::Give, None) => {
+            panic!("input file not set");
+        }
+        (Action::Take, _) => {
             let code = match args.code {
                 Some(code) => code,
                 None => {panic!("code must be set");},
@@ -156,16 +164,18 @@ async fn reciever(code: String, sock: UdpSocket, server_addr: SocketAddr) -> Res
     println!("other ip: {}", &ip_for_code.ip);
 
     punch_hole(&sock, ip_for_code.ip).await?;
+    info!("punched hoel");
     
     let mut file = File::create(ip_for_code.file_name).unwrap();
 
     loop {
+        info!("awaiting packet...");
         let (msg_buf, from) = recv(&sock).await?;
         if from != ip_for_code.ip {
             continue;
         }
         file.write(&msg_buf.as_slice()).unwrap();
-        println!("msg 0th: {}", msg_buf[0]);
+        info!("got packet!");
     }
 
     // Ok(())
@@ -207,6 +217,10 @@ async fn sender(file_name: &'static str, sock: UdpSocket, server_addr: SocketAdd
 
     println!("reciever ip: {}", file_reciever.ip);
 
+    punch_hole(&sock, file_reciever.ip).await?;
+    info!("punched hole to {}", file_reciever.ip);
+
+    thread::sleep(Duration::from_millis(1000));
     sock.send_to(&[0xCB, 0xCB, 65, 65], file_reciever.ip).await?;
 
     Ok(())
