@@ -115,7 +115,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let port: u16 = rng.gen_range(8192..u16::MAX);
     info!("using port {}", port);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], port));
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
     info!("binding to addr");
     let sock = UdpSocket::bind(addr).await?;
     
