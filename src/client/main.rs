@@ -6,13 +6,14 @@ use env_logger::Builder;
 use log::{info, LevelFilter};
 use rand::{Rng};
 use serde::{Serialize, Deserialize};
-use shared::{messages::{you_have_file::{YouHaveFile}, ServerMsg, Message, ip_for_code::IpForCode, taker_ip::TakerIp, i_have_code::{IHaveCode}}, send_msg};
+use shared::{messages::{you_have_file::{YouHaveFile}, ServerMsg, Message, ip_for_code::IpForCode, taker_ip::TakerIp, }};
 use tokio::net::UdpSocket;
 use clap::Parser;
 
-use crate::giver::sender;
+use crate::{giver::sender, taker::reciever};
 
 mod giver;
+mod taker;
 
 const CONFIG_FILENAME: &'static str = "filesender_data.toml";
 
@@ -140,7 +141,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 Some(code) => code,
                 None => {panic!("code must be set");},
             };
-            
             reciever(code, sock, server_addr).await?;
         },
     }
@@ -158,31 +158,4 @@ async fn recv(sock: &UdpSocket, from: SocketAddr) -> Result<Vec<u8>, Box<dyn Err
             return Ok(msg_buf.to_owned());
         }
     }
-}
-
-async fn reciever(code: String, sock: UdpSocket, server_addr: SocketAddr) -> Result<(), Box<dyn Error>> {
-    // Send message to server
-    let i_have_code = IHaveCode::new(code);
-    send_msg(&sock, i_have_code, server_addr).await?;
-
-    let msg_buf = recv(&sock, server_addr).await?;
-
-    let ip_for_code = IpForCode::from_raw(msg_buf.as_slice())?;
-    println!("file name: {}", &ip_for_code.file_name);
-    println!("other ip: {}", &ip_for_code.ip);
-
-    punch_hole(&sock, ip_for_code.ip).await?;
-    info!("punched hoel to {}", ip_for_code.ip);
-    
-    let mut file = File::create(ip_for_code.file_name).unwrap();
-
-    loop {
-        info!("awaiting packet...");
-        let msg_buf = recv(&sock, ip_for_code.ip).await?;
-
-        file.write(&msg_buf.as_slice()).unwrap();
-        info!("got packet!");
-    }
-
-    // Ok(())
 }
