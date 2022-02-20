@@ -126,7 +126,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     
     match (args.action, args.input) {
         (Action::Give, Some(input)) => {
-            sender("hey_guys.txt", sock, server_addr).await?;
+            sender(input, sock, server_addr).await?;
         },
         (Action::Give, None) => {
             panic!("input file not set");
@@ -181,8 +181,8 @@ async fn reciever(code: String, sock: UdpSocket, server_addr: SocketAddr) -> Res
     // Ok(())
 }
 
-async fn sender(file_name: &'static str, sock: UdpSocket, server_addr: SocketAddr) -> Result<(), Box<dyn Error>> {
-    let have_file = HaveFile::new(file_name.to_string());
+async fn sender(file_name: String, sock: UdpSocket, server_addr: SocketAddr) -> Result<(), Box<dyn Error>> {
+    let have_file = HaveFile::new(file_name);
     info!("contacting server");
     send_msg(&sock, have_file, server_addr).await?;
     
