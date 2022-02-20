@@ -1,10 +1,50 @@
-use std::{io::Write, collections::HashMap, error::Error};
+use std::{io::Write, collections::HashMap, error::Error, char};
 use chrono::Local;
 use colored::Colorize;
 use env_logger::Builder;
 use log::{LevelFilter, info};
+use rand::Rng;
 use shared::{messages::{ClientMsg, i_have_code::IHaveCode, Message, have_file::HaveFile, you_have_file::YouHaveFile, ip_for_code::IpForCode, taker_ip::TakerIp}, Transfer};
 use tokio::{net::UdpSocket};
+
+const CODE_CHARS: &'static [char] = &[
+    'A',
+    'B',
+    'C',
+    'D',
+    'E',
+    'F',
+    'G',
+    'H',
+    'I',
+    'J',
+    'K',
+    'L',
+    'M',
+    'N',
+    'O',
+    'P',
+    'Q',
+    'R',
+    'S',
+    'T',
+    'U',
+    'V',
+    'W',
+    'X',
+    'Y',
+    'Z',
+    '1',
+    '2',
+    '3',
+    '4',
+    '5',
+    '6',
+    '7',
+    '8',
+    '9',
+    '0',
+];
 
 fn get_msg_from_raw(raw: &[u8]) -> Result<ClientMsg, &'static str> {
     if let Ok(have_file) = HaveFile::from_raw(raw) {
@@ -19,10 +59,17 @@ fn get_msg_from_raw(raw: &[u8]) -> Result<ClientMsg, &'static str> {
     }
 }
 
-fn new_code<T>(code_map: &HashMap<&'static str, T>) -> Result<&'static str, &'static str> {
-    let code = "asdfhejemil";
+fn new_code<T>(code_map: &HashMap<String, T>) -> Result<String, Box<dyn Error>> {
+    let mut rng = rand::thread_rng();
+    let mut code = String::new();
+
+    for _ in 0..=4 {
+        let char_i = rng.gen_range(0..CODE_CHARS.len());
+        code.push(CODE_CHARS[char_i]);
+    }
+
     loop {
-        if !code_map.contains_key(code) {
+        if !code_map.contains_key(&code) {
             return Ok(code);
         }
     }
@@ -44,7 +91,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .init();
 
     // Make hashmap for every transfer
-    let mut code_map: HashMap<&'static str, Transfer> = HashMap::new();
+    let mut code_map: HashMap<String, Transfer> = HashMap::new();
 
     // Create socket for recieving all messages
     let sock = UdpSocket::bind("0.0.0.0:47335").await?;
@@ -77,7 +124,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
             ClientMsg::IHaveCode(have_code) => {
                 info!("msg was have_code msg");
-                let transfer = match code_map.get(have_code.code.as_str()) {
+                let transfer = match code_map.get(have_code.code.to_uppercase().as_str()) {
                     Some(transfer) => transfer,
                     None => continue, // TODO Send error message to client
                 };
