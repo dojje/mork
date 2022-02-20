@@ -1,4 +1,4 @@
-use std::{net::{SocketAddr}, error::Error, fs::{File, self}, io::Write, path::Path, vec, str::FromStr, thread, time::Duration};
+use std::{net::{SocketAddr}, error::Error, fs::{File, self}, io::Write, path::Path, vec, str::FromStr};
 
 use chrono::Local;
 use colored::Colorize;
@@ -6,9 +6,13 @@ use env_logger::Builder;
 use log::{info, LevelFilter};
 use rand::{Rng};
 use serde::{Serialize, Deserialize};
-use shared::{messages::{have_file::HaveFile, you_have_file::{YouHaveFile}, ServerMsg, Message, ip_for_code::IpForCode, taker_ip::TakerIp, i_have_code::{IHaveCode}}, send_msg};
+use shared::{messages::{you_have_file::{YouHaveFile}, ServerMsg, Message, ip_for_code::IpForCode, taker_ip::TakerIp, i_have_code::{IHaveCode}}, send_msg};
 use tokio::net::UdpSocket;
 use clap::Parser;
+
+use crate::giver::sender;
+
+mod giver;
 
 const CONFIG_FILENAME: &'static str = "filesender_data.toml";
 
@@ -144,12 +148,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn recv(sock: &UdpSocket) -> Result<(Vec<u8>, SocketAddr), Box<dyn Error>> {
-    let mut buf = [0u8;8192];
-    let (amt, src) = sock.recv_from(&mut buf).await?;
-    let msg_buf = &buf[0..amt];
+async fn recv(sock: &UdpSocket, from: SocketAddr) -> Result<Vec<u8>, Box<dyn Error>> {
+    loop {
+        let mut buf = [0u8;8192];
+        let (amt, src) = sock.recv_from(&mut buf).await?;
 
-    Ok((msg_buf.to_owned(), src))
+        if src == from {
+            let msg_buf = &buf[0..amt];
+            return Ok(msg_buf.to_owned());
+        }
+    }
 }
 
 async fn reciever(code: String, sock: UdpSocket, server_addr: SocketAddr) -> Result<(), Box<dyn Error>> {
@@ -157,7 +165,7 @@ async fn reciever(code: String, sock: UdpSocket, server_addr: SocketAddr) -> Res
     let i_have_code = IHaveCode::new(code);
     send_msg(&sock, i_have_code, server_addr).await?;
 
-    let (msg_buf, _from) = recv(&sock).await?;
+    let msg_buf = recv(&sock, server_addr).await?;
 
     let ip_for_code = IpForCode::from_raw(msg_buf.as_slice())?;
     println!("file name: {}", &ip_for_code.file_name);
@@ -170,60 +178,11 @@ async fn reciever(code: String, sock: UdpSocket, server_addr: SocketAddr) -> Res
 
     loop {
         info!("awaiting packet...");
-        let (msg_buf, from) = recv(&sock).await?;
-        if from != ip_for_code.ip {
-            continue;
-        }
+        let msg_buf = recv(&sock, ip_for_code.ip).await?;
+
         file.write(&msg_buf.as_slice()).unwrap();
         info!("got packet!");
     }
 
     // Ok(())
-}
-
-async fn sender(file_name: String, sock: UdpSocket, server_addr: SocketAddr) -> Result<(), Box<dyn Error>> {
-    let have_file = HaveFile::new(file_name);
-    info!("contacting server");
-    send_msg(&sock, have_file, server_addr).await?;
-    
-    // TODO Send this once a second until it gets answer from server
-
-    let msg_buf = loop {
-        let (msg_buf, from) = recv(&sock).await?;
-        if from == server_addr {
-            break msg_buf;
-        }
-    };
-
-    // TODO Check where the server message is comming from
-
-    println!("you have file 0th: {}", msg_buf[0]);
-    let you_have_file = YouHaveFile::from_raw(msg_buf.as_slice())?;
-
-    let code = you_have_file.code;
-    println!("Code for recv: {}", &code);
-
-    // TODO Keep the hole punched
-
-    let msg_buf = loop {
-        let (msg_buf, from) = recv(&sock).await?;
-        if from == server_addr {
-            break msg_buf;
-        }
-    };
-
-    println!("msg 0th: {}", msg_buf[0]);
-    let file_reciever = TakerIp::from_raw(msg_buf.as_slice())?;
-
-    println!("reciever ip: {}", file_reciever.ip);
-
-    punch_hole(&sock, file_reciever.ip).await?;
-    info!("punched hole to {}", file_reciever.ip);
-
-    thread::sleep(Duration::from_millis(1000));
-
-    info!("sending data now");
-    sock.send_to(&[0xCB, 0xCB, 65, 65], file_reciever.ip).await?;
-
-    Ok(())
 }
