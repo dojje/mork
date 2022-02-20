@@ -4,7 +4,7 @@ use serde::{Serialize, Deserialize};
 use super::Message;
 
 #[derive(Serialize, Deserialize, Clone, Message)]
-#[message(msg_code = 2)]
+#[message(msg_code = 1)]
 pub struct IHaveCode {
     pub code: String,
 }

@@ -1,5 +1,7 @@
 use std::{net::{SocketAddr}, error::Error};
 
+use log::info;
+use rand::Rng;
 use shared::{messages::{have_file::HaveFile, you_have_file::{YouHaveFile}, ServerMsg, Message, ip_for_code::IpForCode, taker_ip::TakerIp, i_have_code::{IHaveCode}}, send_msg};
 use tokio::net::UdpSocket;
 use clap::Parser;
@@ -14,13 +16,14 @@ enum Action {
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
-    /// Name of the person to greet
+    /// Subcommand to execute
     #[clap(subcommand)]
     action: Action,
 
-    /// Number of times to greet
-    #[clap(short, long, default_value_t = 1)]
-    count: u8,
+    /// Code for file to recieve
+    /// Must be set if it should recieve files
+    #[clap(short, long)]
+    code: Option<String>,
 }
 
 fn _get_msg_from_raw(raw: &[u8]) -> Result<ServerMsg, &'static str> {
@@ -43,7 +46,11 @@ fn _get_msg_from_raw(raw: &[u8]) -> Result<ServerMsg, &'static str> {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>>{
     let args = Args::parse();
-    let port: u16 = 46352;
+    let mut rng = rand::thread_rng();
+
+    let port: u16 = rng.gen_range(8192..u16::MAX);
+    info!("using port {}", port);
+
     let server_addr = SocketAddr::from(([127,0,0,1], 47335));
 
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
@@ -55,16 +62,21 @@ async fn main() -> Result<(), Box<dyn Error>>{
             sender("hey_guys.txt", sock, server_addr).await?;
         },
         Action::Take => {
-            reciever("cbcb", sock, server_addr).await?;
+            let code = match args.code {
+                Some(code) => code,
+                None => {panic!("code must be set");},
+            };
+            
+            reciever(code, sock, server_addr).await?;
         },
     }
 
     Ok(())
 }
 
-async fn reciever(code: &'static str, sock: UdpSocket, server_addr: SocketAddr) -> Result<(), Box<dyn Error>> {
+async fn reciever(code: String, sock: UdpSocket, server_addr: SocketAddr) -> Result<(), Box<dyn Error>> {
     // Send message to server
-    let i_have_code = IHaveCode::new(code.to_string());
+    let i_have_code = IHaveCode::new(code);
     send_msg(&sock, i_have_code, server_addr).await?;
 
     let mut buf = [0u8;8192];

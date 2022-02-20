@@ -54,12 +54,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
         // Recieve message
         let mut buf = [0u8;8192];
         let (amt, src) = sock.recv_from(&mut buf).await?;
+        info!("got {} bytes from {:?}", amt, &src);
         let msg_buf = &buf[0..amt];
+
+        info!("msg 1st is {}", msg_buf[0]);
 
         // TODO Spawn new thread for every message
 
         match get_msg_from_raw(msg_buf)?{
             ClientMsg::HaveFile(have_file) => {
+                info!("msg was have_file msg");
                 let code = new_code(&code_map)?;
 
                 let resp = YouHaveFile::new(code.to_string());
@@ -72,6 +76,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             },
 
             ClientMsg::IHaveCode(have_code) => {
+                info!("msg was have_code msg");
                 let transfer = match code_map.get(have_code.code.as_str()) {
                     Some(transfer) => transfer,
                     None => continue, // TODO Send error message to client

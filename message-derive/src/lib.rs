@@ -31,7 +31,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
 
     let from_raw = quote! {
         fn from_raw(slice: &[u8]) -> Result<Self, &'static str> {
-            if !slice[0] == #msg_code {
+            if slice[0] != #msg_code {
                 return Err("not good msg");
             }
 
