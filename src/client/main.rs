@@ -164,7 +164,7 @@ async fn reciever(code: String, sock: UdpSocket, server_addr: SocketAddr) -> Res
     println!("other ip: {}", &ip_for_code.ip);
 
     punch_hole(&sock, ip_for_code.ip).await?;
-    info!("punched hoel");
+    info!("punched hoel to {}", ip_for_code.ip);
     
     let mut file = File::create(ip_for_code.file_name).unwrap();
 
@@ -221,6 +221,8 @@ async fn sender(file_name: String, sock: UdpSocket, server_addr: SocketAddr) -> 
     info!("punched hole to {}", file_reciever.ip);
 
     thread::sleep(Duration::from_millis(1000));
+
+    info!("sending data now");
     sock.send_to(&[0xCB, 0xCB, 65, 65], file_reciever.ip).await?;
 
     Ok(())
