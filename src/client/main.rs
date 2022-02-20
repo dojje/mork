@@ -7,7 +7,7 @@ use log::{info, LevelFilter};
 use rand::{Rng};
 use serde::{Serialize, Deserialize};
 use shared::{messages::{have_file::HaveFile, you_have_file::{YouHaveFile}, ServerMsg, Message, ip_for_code::IpForCode, taker_ip::TakerIp, i_have_code::{IHaveCode}}, send_msg};
-use tokio::net::UdpSocket;
+use tokio::net::{UdpSocket, TcpSocket, TcpStream};
 use clap::Parser;
 
 const CONFIG_FILENAME: &'static str = "filesender_data.toml";
@@ -117,11 +117,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     info!("binding to addr");
-    let sock = UdpSocket::bind(addr).await?;
+    let socket = TcpSocket::new_v4()?;
+    let tcp_sock = socket.connect(addr).await?;
+    let udp_sock = UdpSocket::bind(addr).await?;
     
     match args.action {
         Action::Give => {
-            sender("hey_guys.txt", sock, server_addr).await?;
+            sender("hey_guys.txt", udp_sock, tcp_sock, server_addr).await?;
         },
         Action::Take => {
             let code = match args.code {
@@ -129,7 +131,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 None => {panic!("code must be set");},
             };
             
-            reciever(code, sock, server_addr).await?;
+            reciever(code, udp_sock, tcp_sock, server_addr).await?;
         },
     }
 
@@ -144,23 +146,23 @@ async fn recv(sock: &UdpSocket) -> Result<(Vec<u8>, SocketAddr), Box<dyn Error>>
     Ok((msg_buf.to_owned(), src))
 }
 
-async fn reciever(code: String, sock: UdpSocket, server_addr: SocketAddr) -> Result<(), Box<dyn Error>> {
+async fn reciever(code: String, udp_sock: UdpSocket, tcp_sock: TcpStream, server_addr: SocketAddr) -> Result<(), Box<dyn Error>> {
     // Send message to server
     let i_have_code = IHaveCode::new(code);
-    send_msg(&sock, i_have_code, server_addr).await?;
+    send_msg(&udp_sock, i_have_code, server_addr).await?;
 
-    let (msg_buf, _from) = recv(&sock).await?;
+    let (msg_buf, _from) = recv(&udp_sock).await?;
 
     let ip_for_code = IpForCode::from_raw(msg_buf.as_slice())?;
     println!("file name: {}", &ip_for_code.file_name);
     println!("other ip: {}", &ip_for_code.ip);
 
-    punch_hole(&sock, ip_for_code.ip).await?;
+    punch_hole(&udp_sock, ip_for_code.ip).await?;
     
     let mut file = File::create(ip_for_code.file_name).unwrap();
 
     loop {
-        let (msg_buf, from) = recv(&sock).await?;
+        let (msg_buf, from) = recv(&udp_sock).await?;
         if from != ip_for_code.ip {
             continue;
         }
@@ -171,15 +173,15 @@ async fn reciever(code: String, sock: UdpSocket, server_addr: SocketAddr) -> Res
     // Ok(())
 }
 
-async fn sender(file_name: &'static str, sock: UdpSocket, server_addr: SocketAddr) -> Result<(), Box<dyn Error>> {
+async fn sender(file_name: &'static str, udp_sock: UdpSocket, tcp_sock: TcpStream, server_addr: SocketAddr) -> Result<(), Box<dyn Error>> {
     let have_file = HaveFile::new(file_name.to_string());
     info!("contacting server");
-    send_msg(&sock, have_file, server_addr).await?;
+    send_msg(&udp_sock, have_file, server_addr).await?;
     
     // TODO Send this once a second until it gets answer from server
 
     let msg_buf = loop {
-        let (msg_buf, from) = recv(&sock).await?;
+        let (msg_buf, from) = recv(&udp_sock).await?;
         if from == server_addr {
             break msg_buf;
         }
@@ -196,7 +198,7 @@ async fn sender(file_name: &'static str, sock: UdpSocket, server_addr: SocketAdd
     // TODO Keep the hole punched
 
     let msg_buf = loop {
-        let (msg_buf, from) = recv(&sock).await?;
+        let (msg_buf, from) = recv(&udp_sock).await?;
         if from == server_addr {
             break msg_buf;
         }
@@ -207,7 +209,7 @@ async fn sender(file_name: &'static str, sock: UdpSocket, server_addr: SocketAdd
 
     println!("reciever ip: {}", file_reciever.ip);
 
-    sock.send_to(&[0xCB, 0xCB, 65, 65], file_reciever.ip).await?;
+    udp_sock.send_to(&[0xCB, 0xCB, 65, 65], file_reciever.ip).await?;
 
     Ok(())
 }
