@@ -1,6 +1,9 @@
 use std::{net::{SocketAddr}, error::Error, fs::{File, self}, io::Write, path::Path, vec, str::FromStr};
 
-use log::info;
+use chrono::Local;
+use colored::Colorize;
+use env_logger::Builder;
+use log::{info, LevelFilter};
 use rand::{Rng};
 use serde::{Serialize, Deserialize};
 use shared::{messages::{have_file::HaveFile, you_have_file::{YouHaveFile}, ServerMsg, Message, ip_for_code::IpForCode, taker_ip::TakerIp, i_have_code::{IHaveCode}}, send_msg};
@@ -86,16 +89,34 @@ fn get_config() -> Config {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let config = get_config();
-    let args = Args::parse();
-    let mut rng = rand::thread_rng();
+    // init log
+    Builder::new()
+        .format(|buf, record| {
+            writeln!(buf,
+                "{} [{}] - {}",
+                Local::now().format("%Y-%m-%d %H:%M:%S"),
+                record.level().to_string().blue(),
+                record.args()
+            )
+        })
+        .filter(None, LevelFilter::Info)
+        .init();
 
+    // Read arguemts
+    let args = Args::parse();
+
+    // Read from config
+    let config = get_config();
+    let server_addr = SocketAddr::from_str(config.server_ips[0].as_str())?;
+    info!("server ip is {}", server_addr);
+
+    // Come up with port
+    let mut rng = rand::thread_rng();
     let port: u16 = rng.gen_range(8192..u16::MAX);
     info!("using port {}", port);
 
-    let server_addr = SocketAddr::from_str(config.server_ips[0].as_str())?;
-
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
+    info!("binding to addr");
     let sock = UdpSocket::bind(addr).await?;
     
     match args.action {
@@ -152,7 +173,7 @@ async fn reciever(code: String, sock: UdpSocket, server_addr: SocketAddr) -> Res
 
 async fn sender(file_name: &'static str, sock: UdpSocket, server_addr: SocketAddr) -> Result<(), Box<dyn Error>> {
     let have_file = HaveFile::new(file_name.to_string());
-
+    info!("contacting server");
     send_msg(&sock, have_file, server_addr).await?;
     
     // TODO Send this once a second until it gets answer from server
