@@ -136,8 +136,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 let resp = IpForCode::from_transfer(transfer.clone());
                 let resp_raw = resp.to_raw();
                 sock.send_to(resp_raw.as_slice(), src).await?;
-
-            
             },
         }
 

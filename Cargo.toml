@@ -9,6 +9,7 @@ authors = ["dojje (https://dojje.se)"]
 [dependencies]
 log = "0.4.14"
 serde = {version = "1", features = ["derive"]}
+toml = "0.5.8"
 bincode = "1.3.3"
 chrono = "0.4.19"
 env_logger = "0.9.0"
