@@ -2,7 +2,7 @@ use std::{net::SocketAddr, error::Error, time::Duration, thread};
 
 use log::info;
 use shared::{messages::{have_file::HaveFile, you_have_file::YouHaveFile, taker_ip::TakerIp, Message}, send_msg};
-use tokio::net::UdpSocket;
+use tokio::{net::UdpSocket, time};
 
 use crate::{recv, punch_hole};
 
@@ -22,22 +22,32 @@ pub async fn sender(file_name: String, sock: UdpSocket, server_addr: SocketAddr)
     let code = you_have_file.code;
     println!("Code for recv: {}", &code);
 
-    // TODO Keep the hole punched
+    let mut interval = time::interval(Duration::from_millis(500));
 
-    let msg_buf = recv(&sock, server_addr).await?;
+    let taker_ip = loop {
+        tokio::select! {
+            _ = interval.tick() => {
+                // keep hole punched to server
+                sock.send_to(&[255u8], server_addr).await?;
+            }
+            
+            result = recv(&sock, server_addr) => {
+                let msg_buf = result?;
+                let taker_ip = TakerIp::from_raw(msg_buf.as_slice())?;
+                break taker_ip;
+            }
+        }
+    };
 
-    println!("msg 0th: {}", msg_buf[0]);
-    let file_reciever = TakerIp::from_raw(msg_buf.as_slice())?;
+    println!("reciever ip: {}", taker_ip.ip);
 
-    println!("reciever ip: {}", file_reciever.ip);
-
-    punch_hole(&sock, file_reciever.ip).await?;
-    info!("punched hole to {}", file_reciever.ip);
+    punch_hole(&sock, taker_ip.ip).await?;
+    info!("punched hole to {}", taker_ip.ip);
 
     thread::sleep(Duration::from_millis(1000));
 
     info!("sending data now");
-    sock.send_to(&[0xCB, 0xCB, 65, 65], file_reciever.ip).await?;
+    sock.send_to(&[0xCB, 0xCB, 65, 65], taker_ip.ip).await?;
 
     Ok(())
 }

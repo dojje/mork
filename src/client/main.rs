@@ -70,7 +70,7 @@ fn _get_msg_from_raw(raw: &[u8]) -> Result<ServerMsg, &'static str> {
 }
 
 async fn punch_hole(sock: &UdpSocket, addr: SocketAddr) -> Result<(), Box<dyn Error>> {
-    sock.send_to(&[254u8], addr).await?;
+    sock.send_to(&[255u8], addr).await?;
 
     Ok(())
 }
