@@ -1,4 +1,4 @@
-use std::{net::{SocketAddr}, error::Error, fs::{File, self}, io::Write, path::Path, vec, str::FromStr};
+use std::{net::{SocketAddr}, error::Error, fs::{File, self}, io::Write, path::Path, vec, str::FromStr, process};
 
 use chrono::Local;
 use colored::Colorize;
@@ -118,7 +118,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let server_addr = SocketAddr::from_str(config.server_ips[0].as_str())?;
     info!("server ip is {}", server_addr);
 
-    // Get input file
 
     // Come up with port
     let mut rng = rand::thread_rng();
@@ -134,12 +133,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
             sender(input, sock, server_addr).await?;
         },
         (Action::Give, None) => {
-            panic!("input file not set");
+            eprintln!("input file not set");
+            process::exit(0);
         }
         (Action::Take, _) => {
             let code = match args.code {
                 Some(code) => code,
-                None => {panic!("code must be set");},
+                None => {
+                    eprintln!("code must be set");
+                    process::exit(0);
+                },
             };
             reciever(code, sock, server_addr).await?;
         },

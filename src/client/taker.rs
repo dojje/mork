@@ -10,7 +10,7 @@ use crate::{punch_hole, recv};
 pub async fn reciever(code: String, sock: UdpSocket, server_addr: SocketAddr) -> Result<(), Box<dyn Error>> {
     // Send message to server
     let i_have_code = IHaveCode::new(code);
-    send_msg(&sock, i_have_code, server_addr).await?;
+    send_msg(&sock, &i_have_code, server_addr).await?;
 
     let msg_buf = recv(&sock, server_addr).await?;
 

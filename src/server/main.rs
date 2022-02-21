@@ -87,7 +87,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 record.args()
             )
         })
-        .filter(None, LevelFilter::Trace)
+        .filter(None, LevelFilter::Debug)
         .init();
 
     // Make hashmap for every transfer
@@ -108,7 +108,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         // TODO Spawn new thread for every message
 
-        match get_msg_from_raw(msg_buf)?{
+        let msg_res = get_msg_from_raw(msg_buf);
+        let msg = match msg_res {
+            Ok(msg) => msg,
+            Err(_) => continue,
+        };
+
+        match msg {
             ClientMsg::HaveFile(have_file) => {
                 info!("msg was have_file msg");
                 let code = new_code(&code_map)?;
