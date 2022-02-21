@@ -16,6 +16,8 @@ mod giver;
 mod taker;
 
 const CONFIG_FILENAME: &'static str = "filesender_data.toml";
+// TODO longer codes
+// TODO fix clap order, make it so that you can use any order
 
 #[derive(Serialize, Deserialize)]
 struct Config {

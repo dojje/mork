@@ -1,4 +1,8 @@
-use std::{net::SocketAddr, error::Error, time::Duration, thread, fs::{File}};
+use std::{net::SocketAddr, error::Error, time::Duration, thread, fs::{File}, };
+#[cfg(target_os = "windows")]
+use std::os::windows::prelude::FileExt;
+#[cfg(target_os = "linux")]
+use std::os::unix::fs::FileExt;
 
 use log::info;
 use shared::{messages::{have_file::HaveFile, you_have_file::{YouHaveFile}, taker_ip::TakerIp, Message}, send_msg};
@@ -53,22 +57,28 @@ pub async fn sender(file_name: String, sock: UdpSocket, server_addr: SocketAddr)
 
     thread::sleep(Duration::from_millis(1000));
 
-    // info!("sending data now");
-    // let input_file = File::open(file_name)?;
-    // let file_len = input_file.metadata()?.len();
-    // let mut offset = 0;
-    // loop {
-    //     let mut file_buf = [0u8;508];
-    //     input_file.seek_read(&mut file_buf, offset)?;
+    info!("sending data now");
+    let input_file = File::open(file_name)?;
+    let file_len = input_file.metadata()?.len();
+    let mut offset = 0;
+    loop {
+        let mut file_buf = [0u8;508];
+        #[cfg(target_os = "linux")]
+        {
+            input_file.read_at(&mut file_buf, offset)?;
+        }
+        #[cfg(target_os = "windows")]
+        {
+            input_file.seek_read(&mut file_buf, offset)?;
+        }
 
-    //     sock.send_to(&file_buf, taker_ip.ip).await?;
+        sock.send_to(&file_buf, taker_ip.ip).await?;
 
-    //     offset += 508;
-    //     if offset >= file_len {
-    //         break;
-    //     }
-    // }
-    sock.send_to(&[65, 65, 66, 66], taker_ip.ip).await?;
+        offset += 508;
+        if offset >= file_len {
+            break;
+        }
+    }
 
     Ok(())
 }
