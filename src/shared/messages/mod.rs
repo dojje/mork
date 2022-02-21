@@ -19,7 +19,8 @@ pub enum ServerMsg {
     IpForCode(ip_for_code::IpForCode),
     TakerIp(taker_ip::TakerIp)
 }
-
+// TODO Make metadata for sending
+// TODO Make wrapper for 
 pub trait Message {
     fn to_raw(&self) -> Vec<u8>;
     fn from_raw(raw: &[u8]) -> Result<Self, &'static str> where Self: Sized;
