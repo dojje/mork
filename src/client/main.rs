@@ -1,4 +1,4 @@
-use std::{net::{SocketAddr}, error::Error, fs::{File, self}, io::Write, path::Path, vec, str::FromStr, process};
+use std::{net::{SocketAddr}, error::Error, fs::{File, self}, io::Write, path::Path, vec, str::FromStr, process, sync::Arc};
 
 use chrono::Local;
 use colored::Colorize;
@@ -128,7 +128,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     info!("binding to addr");
-    let sock = UdpSocket::bind(addr).await?;
+    let sock = Arc::new(UdpSocket::bind(addr).await?);
     
     match (args.action, args.input) {
         (Action::Give, Some(input)) => {

@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, error::Error, fs::File, io::Write};
+use std::{net::SocketAddr, error::Error, fs::File, io::Write, sync::Arc};
 
 use log::info;
 use shared::{messages::{i_have_code::IHaveCode, ip_for_code::IpForCode, Message}, send_msg};
@@ -7,7 +7,7 @@ use tokio::net::UdpSocket;
 use crate::{punch_hole, recv};
 
 
-pub async fn reciever(code: String, sock: UdpSocket, server_addr: SocketAddr) -> Result<(), Box<dyn Error>> {
+pub async fn reciever(code: String, sock: Arc<UdpSocket>, server_addr: SocketAddr) -> Result<(), Box<dyn Error>> {
     // Send message to server
     let i_have_code = IHaveCode::new(code);
     send_msg(&sock, &i_have_code, server_addr).await?;

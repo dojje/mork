@@ -1,17 +1,17 @@
-use std::{net::SocketAddr, error::Error, time::Duration, thread, fs::{File}, };
+use std::{net::SocketAddr, error::{Error, self}, time::Duration, thread, fs::{File}, sync::Arc, };
 #[cfg(target_os = "windows")]
 use std::os::windows::prelude::FileExt;
 #[cfg(target_os = "linux")]
 use std::os::unix::fs::FileExt;
 
 use log::info;
-use shared::{messages::{have_file::HaveFile, you_have_file::{YouHaveFile}, taker_ip::TakerIp, Message}, send_msg};
+use shared::{messages::{have_file::HaveFile, you_have_file::{YouHaveFile}, taker_ip::{TakerIp}, Message}, send_msg};
 use tokio::{net::UdpSocket, time};
 
 use crate::{recv, punch_hole};
 
 
-pub async fn sender(file_name: String, sock: UdpSocket, server_addr: SocketAddr) -> Result<(), Box<dyn Error>> {
+pub async fn sender(file_name: String, sock: Arc<UdpSocket>, server_addr: SocketAddr) -> Result<(), Box<dyn Error>> {
     let have_file = HaveFile::new(file_name.clone());
 
     // This will be used for all udp pings
@@ -35,7 +35,7 @@ pub async fn sender(file_name: String, sock: UdpSocket, server_addr: SocketAddr)
     println!("Code for recv: {}", &code);
 
     // Wait for taker ip
-    let taker_ip = loop {
+    loop {
         tokio::select! {
             _ = interval.tick() => {
                 // keep hole punched to server
@@ -45,15 +45,22 @@ pub async fn sender(file_name: String, sock: UdpSocket, server_addr: SocketAddr)
             result = recv(&sock, server_addr) => {
                 let msg_buf = result?;
                 let taker_ip = TakerIp::from_raw(msg_buf.as_slice())?;
+                tokio::spawn(async move {
+                    send_file_to(sock.clone(), file_name, taker_ip.ip).await.expect("could not send file");
+                });
+                // send_file_to(sock.clone(), )
                 break taker_ip;
             }
         }
     };
+    Ok(())
+}
 
-    println!("reciever ip: {}", taker_ip.ip);
+async fn send_file_to(sock: Arc<UdpSocket>, file_name: String, reciever: SocketAddr) -> Result<(), Box<dyn error::Error>> {
+    println!("reciever ip: {}", reciever);
 
-    punch_hole(&sock, taker_ip.ip).await?;
-    info!("punched hole to {}", taker_ip.ip);
+    punch_hole(&sock, reciever).await?;
+    info!("punched hole to {}", reciever);
 
     thread::sleep(Duration::from_millis(1000));
 
@@ -72,13 +79,14 @@ pub async fn sender(file_name: String, sock: UdpSocket, server_addr: SocketAddr)
             input_file.seek_read(&mut file_buf, offset)?;
         }
 
-        sock.send_to(&file_buf, taker_ip.ip).await?;
+        sock.send_to(&file_buf, reciever).await?;
 
         offset += 508;
         if offset >= file_len {
             break;
         }
     }
+
 
     Ok(())
 }
