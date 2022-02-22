@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, error::Error, fs::File, io::Write, sync::Arc};
+use std::{net::SocketAddr, error::Error, fs::File, io::Write, sync::Arc, };
 
 use log::info;
 use shared::{messages::{i_have_code::IHaveCode, ip_for_code::IpForCode, Message}, send_msg};
@@ -15,11 +15,10 @@ pub async fn reciever(code: String, sock: Arc<UdpSocket>, server_addr: SocketAdd
     let msg_buf = recv(&sock, server_addr).await?;
 
     let ip_for_code = IpForCode::from_raw(msg_buf.as_slice())?;
-    println!("file name: {}", &ip_for_code.file_name);
-    println!("other ip: {}", &ip_for_code.ip);
+    info!("file name: {}", &ip_for_code.file_name);
+    info!("other ip: {}", &ip_for_code.ip);
 
     punch_hole(&sock, ip_for_code.ip).await?;
-    info!("punched hoel to {}", ip_for_code.ip);
 
     let filename = match output {
         Some(filename) => filename,
@@ -28,12 +27,31 @@ pub async fn reciever(code: String, sock: Arc<UdpSocket>, server_addr: SocketAdd
     
     let mut file = File::create(filename).unwrap();
 
+    let mut msg_num: u64 = 0;
     loop {
-        info!("awaiting packet...");
         let msg_buf = recv(&sock, ip_for_code.ip).await?;
 
-        file.write(&msg_buf.as_slice()).unwrap();
-        info!("got packet!");
+        if msg_num == 0 && msg_buf.len() == 1 && msg_buf[0] == 255 {
+            // Skip if the first iteration is a hole punch msg
+            continue;
+        }
+
+        let num_bytes: [u8; 8] = [
+            msg_buf[0],
+            msg_buf[1],
+            msg_buf[2],
+            msg_buf[3],
+            msg_buf[4],
+            msg_buf[5],
+            msg_buf[6],
+            msg_buf[7]
+        ];
+
+        let giver_msg_num = u64::from_be_bytes(num_bytes);
+        let rest = &msg_buf[8..];
+
+        file.write(&rest).unwrap();
+        msg_num += 1;
     }
 
     // Ok(())

@@ -1,3 +1,4 @@
+#![feature(ip)]
 use std::{net::{SocketAddr}, error::Error, fs::{File, self}, io::Write, path::Path, vec, str::FromStr, process, sync::Arc};
 
 use chrono::Local;

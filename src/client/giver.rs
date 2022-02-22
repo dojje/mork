@@ -10,6 +10,17 @@ use tokio::{net::UdpSocket, time};
 
 use crate::{recv, punch_hole};
 
+fn ensure_global_ip(addr: SocketAddr, server_ip: &SocketAddr) -> SocketAddr {
+    if addr.ip().is_global() {
+        return addr;
+    }
+
+    // If address is not global
+    // Then the address is probalby from the servers lan
+    // This could happen if the user is running their own server
+    // Use the servers global ip and the clients port
+    SocketAddr::new(server_ip.ip(), addr.port())
+}
 
 pub async fn sender(file_name: String, sock: Arc<UdpSocket>, server_addr: SocketAddr) -> Result<(), Box<dyn Error>> {
     let have_file = HaveFile::new(file_name.clone());
@@ -47,15 +58,24 @@ pub async fn sender(file_name: String, sock: Arc<UdpSocket>, server_addr: Socket
                 let msg_buf = result?;
                 let taker_ip = TakerIp::from_raw(msg_buf.as_slice())?;
 
+                let correct_ip = ensure_global_ip(taker_ip.ip, &server_addr);
                 let file_name = file_name.clone();
                 let sock_send = sock.clone();
                 tokio::spawn(async move {
-                    send_file_to(sock_send, file_name, taker_ip.ip).await.expect("could not send file");
+                    send_file_to(sock_send, file_name, correct_ip).await.expect("could not send file");
                 });
                 // send_file_to(sock.clone(), )
             }
         }
     };
+}
+
+fn get_buf(msg_num: &u64, file_buf: &[u8]) -> Vec<u8> {
+    let msg_num_u8 = msg_num.to_be_bytes();
+
+    let full = [&msg_num_u8, file_buf].concat();
+
+    full
 }
 
 async fn send_file_to(sock: Arc<UdpSocket>, file_name: String, reciever: SocketAddr) -> Result<(), Box<dyn error::Error>> {
@@ -66,29 +86,33 @@ async fn send_file_to(sock: Arc<UdpSocket>, file_name: String, reciever: SocketA
 
     thread::sleep(Duration::from_millis(1000));
 
+    // Udp messages should be 508 bytes
+    // 8 of those bytes are used for checking order of recieving bytes
+    // The rest 500 bytes are used to send the file
+    // The file gets send 500 bytes 
     info!("sending data now");
     let input_file = File::open(file_name)?;
     let file_len = input_file.metadata()?.len();
     let mut offset = 0;
+    let mut msg_num: u64 = 0;
     loop {
-        let mut file_buf = [0u8;508];
+        let mut file_buf = [0u8;500];
         #[cfg(target_os = "linux")]
-        {
-            let amt = input_file.read_at(&mut file_buf, offset)?;
-            sock.send_to(&file_buf[0..amt], reciever).await?;
-        }
-        #[cfg(target_os = "windows")]
-        {
-            let amt = input_file.seek_read(&mut file_buf, offset)?;
-            sock.send_to(&file_buf[0..amt], reciever).await?;
-        }
+        let amt = input_file.read_at(&mut file_buf, offset)?;
 
-        offset += 508;
+        #[cfg(target_os = "windows")]
+        let amt = input_file.seek_read(&mut file_buf, offset)?;
+
+        let buf = get_buf(&msg_num, &file_buf[0..amt]);
+        sock.send_to(&buf[..], reciever).await?;
+
+        offset += 500;
         if offset >= file_len {
             break;
         }
-    }
 
+        msg_num += 1;
+    }
 
     Ok(())
 }

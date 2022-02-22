@@ -4,7 +4,7 @@ use colored::Colorize;
 use env_logger::Builder;
 use log::{LevelFilter, info};
 use rand::Rng;
-use shared::{messages::{ClientMsg, i_have_code::IHaveCode, Message, have_file::HaveFile, you_have_file::YouHaveFile, ip_for_code::IpForCode, taker_ip::TakerIp}, Transfer};
+use shared::{messages::{ClientMsg, i_have_code::{IHaveCode}, Message, have_file::HaveFile, you_have_file::YouHaveFile, ip_for_code::IpForCode, taker_ip::TakerIp}, Transfer};
 use tokio::{net::UdpSocket};
 
 const CODE_CHARS: &'static [char] = &[
@@ -101,10 +101,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         // Recieve message
         let mut buf = [0u8;8192];
         let (amt, src) = sock.recv_from(&mut buf).await?;
-        info!("got {} bytes from {:?}", amt, &src);
         let msg_buf = &buf[0..amt];
-
-        info!("msg 1st is {}", msg_buf[0]);
 
         // TODO Spawn new thread for every message
 
@@ -116,7 +113,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         match msg {
             ClientMsg::HaveFile(have_file) => {
-                info!("msg was have_file msg");
                 let code = new_code(&code_map)?;
 
                 let resp = YouHaveFile::new(code.to_string());
@@ -124,16 +120,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 let resp_raw = resp.to_raw();
                 sock.send_to(resp_raw.as_slice(), src).await?;
 
+                info!("client from {} is ready to send {} with code {}", src, have_file.file_name, code);
                 let transfer = Transfer::new(src, have_file.file_name);
                 code_map.insert(code, transfer);
             },
 
             ClientMsg::IHaveCode(have_code) => {
-                info!("msg was have_code msg");
                 let transfer = match code_map.get(have_code.code.to_uppercase().as_str()) {
                     Some(transfer) => transfer,
                     None => continue, // TODO Send error message to client
                 };
+                info!("client from {} want to recieve from code {}", src, have_code.code);
 
                 // Send taker ip to giver
                 let taker_ip = TakerIp::new(src);
