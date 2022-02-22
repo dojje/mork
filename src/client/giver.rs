@@ -74,14 +74,14 @@ async fn send_file_to(sock: Arc<UdpSocket>, file_name: String, reciever: SocketA
         let mut file_buf = [0u8;508];
         #[cfg(target_os = "linux")]
         {
-            input_file.read_at(&mut file_buf, offset)?;
+            let amt = input_file.read_at(&mut file_buf, offset)?;
+            sock.send_to(&file_buf[0..amt], reciever).await?;
         }
         #[cfg(target_os = "windows")]
         {
-            input_file.seek_read(&mut file_buf, offset)?;
+            let amt = input_file.seek_read(&mut file_buf, offset)?;
+            sock.send_to(&file_buf[0..amt], reciever).await?;
         }
-
-        sock.send_to(&file_buf, reciever).await?;
 
         offset += 508;
         if offset >= file_len {

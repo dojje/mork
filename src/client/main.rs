@@ -53,6 +53,9 @@ struct Args {
 
     #[clap(short, long)]
     input: Option<String>,
+
+    #[clap(short, long)]
+    output: Option<String>,
 }
 
 fn _get_msg_from_raw(raw: &[u8]) -> Result<ServerMsg, &'static str> {
@@ -146,7 +149,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     process::exit(0);
                 },
             };
-            reciever(code, sock, server_addr).await?;
+            reciever(code, sock, server_addr, args.output).await?;
         },
     }
 

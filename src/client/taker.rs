@@ -7,7 +7,7 @@ use tokio::net::UdpSocket;
 use crate::{punch_hole, recv};
 
 
-pub async fn reciever(code: String, sock: Arc<UdpSocket>, server_addr: SocketAddr) -> Result<(), Box<dyn Error>> {
+pub async fn reciever(code: String, sock: Arc<UdpSocket>, server_addr: SocketAddr, output: Option<String>) -> Result<(), Box<dyn Error>> {
     // Send message to server
     let i_have_code = IHaveCode::new(code);
     send_msg(&sock, &i_have_code, server_addr).await?;
@@ -20,8 +20,13 @@ pub async fn reciever(code: String, sock: Arc<UdpSocket>, server_addr: SocketAdd
 
     punch_hole(&sock, ip_for_code.ip).await?;
     info!("punched hoel to {}", ip_for_code.ip);
+
+    let filename = match output {
+        Some(filename) => filename,
+        None => ip_for_code.file_name,
+    };
     
-    let mut file = File::create(ip_for_code.file_name).unwrap();
+    let mut file = File::create(filename).unwrap();
 
     loop {
         info!("awaiting packet...");
