@@ -79,10 +79,9 @@ fn get_buf(msg_num: &u64, file_buf: &[u8]) -> Vec<u8> {
 }
 
 async fn send_file_to(sock: Arc<UdpSocket>, file_name: String, reciever: SocketAddr) -> Result<(), Box<dyn error::Error>> {
-    println!("reciever ip: {}", reciever);
+    info!("reciever ip: {}", reciever);
 
     punch_hole(&sock, reciever).await?;
-    info!("punched hole to {}", reciever);
 
     thread::sleep(Duration::from_millis(1000));
 
@@ -90,11 +89,11 @@ async fn send_file_to(sock: Arc<UdpSocket>, file_name: String, reciever: SocketA
     // 8 of those bytes are used for checking order of recieving bytes
     // The rest 500 bytes are used to send the file
     // The file gets send 500 bytes 
-    info!("sending data now");
     let input_file = File::open(file_name)?;
     let file_len = input_file.metadata()?.len();
     let mut offset = 0;
     let mut msg_num: u64 = 0;
+    info!("will send {} bytes in {} packets", file_len, file_len / 500 + 1);
     loop {
         let mut file_buf = [0u8;500];
         #[cfg(target_os = "linux")]

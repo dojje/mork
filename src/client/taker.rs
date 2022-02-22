@@ -47,7 +47,7 @@ pub async fn reciever(code: String, sock: Arc<UdpSocket>, server_addr: SocketAdd
             msg_buf[7]
         ];
 
-        let giver_msg_num = u64::from_be_bytes(num_bytes);
+        let _giver_msg_num = u64::from_be_bytes(num_bytes);
         let rest = &msg_buf[8..];
 
         file.write(&rest).unwrap();
