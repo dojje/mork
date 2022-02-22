@@ -101,6 +101,18 @@ fn get_config() -> Config {
     config
 }
 
+fn ensure_global_ip(addr: SocketAddr, server_ip: &SocketAddr) -> SocketAddr {
+    if addr.ip().is_global() {
+        return addr;
+    }
+
+    // If address is not global
+    // Then the address is probalby from the servers lan
+    // This could happen if the user is running their own server
+    // Use the servers global ip and the clients port
+    SocketAddr::new(server_ip.ip(), addr.port())
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     // init log

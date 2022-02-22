@@ -4,7 +4,7 @@ use log::info;
 use shared::{messages::{i_have_code::IHaveCode, ip_for_code::IpForCode, Message}, send_msg};
 use tokio::net::UdpSocket;
 
-use crate::{punch_hole, recv};
+use crate::{punch_hole, recv, ensure_global_ip};
 
 
 pub async fn reciever(code: String, sock: Arc<UdpSocket>, server_addr: SocketAddr, output: Option<String>) -> Result<(), Box<dyn Error>> {
@@ -15,10 +15,13 @@ pub async fn reciever(code: String, sock: Arc<UdpSocket>, server_addr: SocketAdd
     let msg_buf = recv(&sock, server_addr).await?;
 
     let ip_for_code = IpForCode::from_raw(msg_buf.as_slice())?;
+    let ip = ensure_global_ip(ip_for_code.ip, &server_addr);
     info!("file name: {}", &ip_for_code.file_name);
-    info!("other ip: {}", &ip_for_code.ip);
+    info!("other ip: {}", &ip);
 
-    punch_hole(&sock, ip_for_code.ip).await?;
+    // Punch hole
+    punch_hole(&sock, ip).await?;
+    info!("ready to recieve");
 
     let filename = match output {
         Some(filename) => filename,
@@ -29,7 +32,7 @@ pub async fn reciever(code: String, sock: Arc<UdpSocket>, server_addr: SocketAdd
 
     let mut msg_num: u64 = 0;
     loop {
-        let msg_buf = recv(&sock, ip_for_code.ip).await?;
+        let msg_buf = recv(&sock, ip).await?;
 
         if msg_num == 0 && msg_buf.len() == 1 && msg_buf[0] == 255 {
             // Skip if the first iteration is a hole punch msg

@@ -8,19 +8,8 @@ use log::info;
 use shared::{messages::{have_file::HaveFile, you_have_file::{YouHaveFile}, taker_ip::{TakerIp}, Message}, send_msg};
 use tokio::{net::UdpSocket, time};
 
-use crate::{recv, punch_hole};
+use crate::{recv, punch_hole, ensure_global_ip};
 
-fn ensure_global_ip(addr: SocketAddr, server_ip: &SocketAddr) -> SocketAddr {
-    if addr.ip().is_global() {
-        return addr;
-    }
-
-    // If address is not global
-    // Then the address is probalby from the servers lan
-    // This could happen if the user is running their own server
-    // Use the servers global ip and the clients port
-    SocketAddr::new(server_ip.ip(), addr.port())
-}
 
 pub async fn sender(file_name: String, sock: Arc<UdpSocket>, server_addr: SocketAddr) -> Result<(), Box<dyn Error>> {
     let have_file = HaveFile::new(file_name.clone());
@@ -112,6 +101,7 @@ async fn send_file_to(sock: Arc<UdpSocket>, file_name: String, reciever: SocketA
 
         msg_num += 1;
     }
+    info!("done sending file");
 
     Ok(())
 }
