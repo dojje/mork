@@ -36,24 +36,26 @@ pub async fn sender(file_name: String, sock: Arc<UdpSocket>, server_addr: Socket
 
     // Wait for taker ip
     loop {
+        let sock_recv = sock.clone();
         tokio::select! {
             _ = interval.tick() => {
                 // keep hole punched to server
                 sock.send_to(&[255u8], server_addr).await?;
             }
             
-            result = recv(&sock, server_addr) => {
+            result = recv(&sock_recv, server_addr) => {
                 let msg_buf = result?;
                 let taker_ip = TakerIp::from_raw(msg_buf.as_slice())?;
+
+                let file_name = file_name.clone();
+                let sock_send = sock.clone();
                 tokio::spawn(async move {
-                    send_file_to(sock.clone(), file_name, taker_ip.ip).await.expect("could not send file");
+                    send_file_to(sock_send, file_name, taker_ip.ip).await.expect("could not send file");
                 });
                 // send_file_to(sock.clone(), )
-                break taker_ip;
             }
         }
     };
-    Ok(())
 }
 
 async fn send_file_to(sock: Arc<UdpSocket>, file_name: String, reciever: SocketAddr) -> Result<(), Box<dyn error::Error>> {
