@@ -1,5 +1,5 @@
 #![feature(ip)]
-use std::{net::{SocketAddr}, error::Error, fs::{File, self}, io::Write, path::Path, vec, str::FromStr, process, sync::Arc};
+use std::{net::{SocketAddr}, error::{Error}, fs::{File, self}, io::Write, path::{Path}, vec, str::FromStr, process, sync::{Arc}};
 
 use chrono::Local;
 use colored::Colorize;
@@ -33,13 +33,23 @@ impl Config {
     }
 }
 
+
+#[derive(Clone)]
+pub enum SendMethod {
+    Burst, // Send packets without any sort of check
+    Confirm, // The reciever needs to confirm that a packet has been sent
+    Index, // The sender sends the index of the packet, it get's placed where it belongs
+}
+
+// Things for clap
+
 #[derive(clap::Subcommand, Debug)]
 enum Action {
     Give,
     Take
 }
 
-/// Simple program to greet a person
+
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
@@ -57,6 +67,9 @@ struct Args {
 
     #[clap(short, long)]
     output: Option<String>,
+
+    #[clap(short, long, default_value = "seq")]
+    recv_mode: String
 }
 
 fn _get_msg_from_raw(raw: &[u8]) -> Result<ServerMsg, &'static str> {
@@ -148,7 +161,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     
     match (args.action, args.input) {
         (Action::Give, Some(input)) => {
-            sender(input, sock, server_addr).await?;
+            sender(input, sock, server_addr, SendMethod::Burst).await?;
         },
         (Action::Give, None) => {
             eprintln!("input file not set");
@@ -162,19 +175,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     process::exit(0);
                 },
             };
-            reciever(code, sock, server_addr, args.output).await?;
+
+            let send_method = SendMethod::Burst;
+            reciever(code, sock, server_addr, args.output, send_method).await?;
         },
     }
 
     Ok(())
 }
 
-async fn recv(sock: &UdpSocket, from: SocketAddr) -> Result<Vec<u8>, Box<dyn Error>> {
+async fn recv(sock: &UdpSocket, from: &SocketAddr) -> Result<Vec<u8>, Box<dyn Error>> {
     loop {
         let mut buf = [0u8;8192];
         let (amt, src) = sock.recv_from(&mut buf).await?;
 
-        if src == from {
+        if &src == from {
             let msg_buf = &buf[0..amt];
             return Ok(msg_buf.to_owned());
         }

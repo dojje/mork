@@ -1,18 +1,18 @@
-use std::{net::SocketAddr, error::Error, fs::File, io::Write, sync::Arc, };
+use std::{net::SocketAddr, error::{Error, self}, fs::File, io::Write, sync::Arc, };
 
 use log::info;
 use shared::{messages::{i_have_code::IHaveCode, ip_for_code::IpForCode, Message}, send_msg};
 use tokio::net::UdpSocket;
 
-use crate::{punch_hole, recv, ensure_global_ip};
+use crate::{punch_hole, recv, ensure_global_ip, SendMethod};
 
 
-pub async fn reciever(code: String, sock: Arc<UdpSocket>, server_addr: SocketAddr, output: Option<String>) -> Result<(), Box<dyn Error>> {
+pub async fn reciever(code: String, sock: Arc<UdpSocket>, server_addr: SocketAddr, output: Option<String>, send_method: SendMethod) -> Result<(), Box<dyn Error>> {
     // Send message to server
     let i_have_code = IHaveCode::new(code);
     send_msg(&sock, &i_have_code, server_addr).await?;
 
-    let msg_buf = recv(&sock, server_addr).await?;
+    let msg_buf = recv(&sock, &server_addr).await?;
 
     let ip_for_code = IpForCode::from_raw(msg_buf.as_slice())?;
     let ip = ensure_global_ip(ip_for_code.ip, &server_addr);
@@ -21,18 +21,34 @@ pub async fn reciever(code: String, sock: Arc<UdpSocket>, server_addr: SocketAdd
 
     // Punch hole
     punch_hole(&sock, ip).await?;
-    info!("ready to recieve");
 
+    // Use custom output if specified
+    // Else use the filename provided by the server
     let filename = match output {
         Some(filename) => filename,
         None => ip_for_code.file_name,
     };
-    
     let mut file = File::create(filename).unwrap();
+
+    info!("ready to recieve");
+
+    match send_method {
+        SendMethod::Burst => {
+            recv_file_burst(&mut file, sock, ip).await?;
+        },
+        SendMethod::Confirm => todo!(),
+        SendMethod::Index => todo!(),
+    }
+    
+    Ok(())
+}
+
+async fn recv_file_burst(file: &mut File, sock: Arc<UdpSocket>, ip: SocketAddr) -> Result<(), Box<dyn error::Error>>{
+    // TODO Make it truly burst, remove checking for index
 
     let mut msg_num: u64 = 0;
     loop {
-        let msg_buf = recv(&sock, ip).await?;
+        let msg_buf = recv(&sock, &ip).await?;
 
         if msg_num == 0 && msg_buf.len() == 1 && msg_buf[0] == 255 {
             // Skip if the first iteration is a hole punch msg
@@ -56,6 +72,4 @@ pub async fn reciever(code: String, sock: Arc<UdpSocket>, server_addr: SocketAdd
         file.write(&rest).unwrap();
         msg_num += 1;
     }
-
-    // Ok(())
 }
