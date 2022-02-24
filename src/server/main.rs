@@ -128,7 +128,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             ClientMsg::IHaveCode(have_code) => {
                 let transfer = match code_map.get(have_code.code.to_uppercase().as_str()) {
                     Some(transfer) => transfer,
-                    None => continue, // TODO Send error message to client
+                    None => continue,
                 };
                 info!("client from {} want to recieve from code {}", src, have_code.code);
 
