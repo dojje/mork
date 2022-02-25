@@ -1,8 +1,8 @@
-use std::{net::SocketAddr, error::{Error, self}, fs::File, io::Write, sync::Arc, };
+use std::{net::SocketAddr, error::{Error, self}, fs::File, io::Write, sync::Arc, time::Duration, os::windows::prelude::FileExt, };
 
 use log::info;
 use shared::{messages::{i_have_code::IHaveCode, ip_for_code::IpForCode, Message}, send_msg};
-use tokio::net::UdpSocket;
+use tokio::{net::UdpSocket, time};
 
 use crate::{punch_hole, recv, ensure_global_ip, SendMethod};
 
@@ -43,33 +43,80 @@ pub async fn reciever(code: String, sock: Arc<UdpSocket>, server_addr: SocketAdd
     Ok(())
 }
 
-async fn recv_file_burst(file: &mut File, sock: Arc<UdpSocket>, ip: SocketAddr) -> Result<(), Box<dyn error::Error>>{
-    // TODO Make it truly burst, remove checking for index
+fn get_msg_num(msg_buf: &[u8]) -> u64 {
+    let num_bytes: [u8; 8] = [
+        msg_buf[0],
+        msg_buf[1],
+        msg_buf[2],
+        msg_buf[3],
+        msg_buf[4],
+        msg_buf[5],
+        msg_buf[6],
+        msg_buf[7]
+    ];
 
-    let mut msg_num: u64 = 0;
+    let msg_num = u64::from_be_bytes(num_bytes);
+
+    msg_num
+}
+
+async fn recv_file_burst(file: &mut File, sock: Arc<UdpSocket>, ip: SocketAddr) -> Result<(), Box<dyn error::Error>> {
     loop {
-        let msg_buf = recv(&sock, &ip).await?;
+        let wait_time = time::sleep(Duration::from_millis(2000));
+        tokio::select! {
+            _ = wait_time => {
+                info!("No message has been recieved for 2000ms, exiting!");
+                break;
+            }
+            msg_buf = recv(&sock, &ip) => {
+                let msg_buf = msg_buf?;
 
-        if msg_num == 0 && msg_buf.len() == 1 && msg_buf[0] == 255 {
-            // Skip if the first iteration is a hole punch msg
-            continue;
+                if msg_buf.len() == 1 && msg_buf[0] == 255 {
+                    // Skip if the first iteration is a hole punch msg
+                    continue;
+                }
+                let rest = &msg_buf[8..];
+
+                file.write(&rest).unwrap();
+            }
         }
-
-        let num_bytes: [u8; 8] = [
-            msg_buf[0],
-            msg_buf[1],
-            msg_buf[2],
-            msg_buf[3],
-            msg_buf[4],
-            msg_buf[5],
-            msg_buf[6],
-            msg_buf[7]
-        ];
-
-        let _giver_msg_num = u64::from_be_bytes(num_bytes);
-        let rest = &msg_buf[8..];
-
-        file.write(&rest).unwrap();
-        msg_num += 1;
     }
+
+    Ok(())
+}
+
+fn get_offset(msg_num: u64) -> u64 {
+    msg_num * 500
+}
+
+fn write_buf_to_file(buf: &[u8], file: &mut File) {
+    let msg_num = get_msg_num(buf);
+    let msg_offset = get_offset(msg_num);
+
+    let rest = &buf[8..];
+    file.seek_write(&rest, msg_offset).unwrap();
+}
+
+async fn recv_file_index(file: &mut File, sock: Arc<UdpSocket>, ip: SocketAddr) -> Result<(), Box<dyn error::Error>> {
+    loop {
+        let wait_time = time::sleep(Duration::from_millis(2000));
+        tokio::select! {
+            _ = wait_time => {
+                info!("No message has been recieved for 2000ms, exiting!");
+                break;
+            }
+            msg_buf = recv(&sock, &ip) => {
+                let msg_buf = msg_buf?;
+
+                if msg_buf.len() == 1 && msg_buf[0] == 255 {
+                    // Skip if the first iteration is a hole punch msg
+                    continue;
+                }
+
+                write_buf_to_file(&msg_buf, file);
+            }
+        }
+    }
+
+    Ok(())
 }
