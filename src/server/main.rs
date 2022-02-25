@@ -121,7 +121,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 sock.send_to(resp_raw.as_slice(), src).await?;
 
                 info!("client from {} is ready to send {} with code {}", src, have_file.file_name, code);
-                let transfer = Transfer::new(src, have_file.file_name);
+                let transfer = Transfer::new(src, have_file.file_name, have_file.file_len);
                 code_map.insert(code, transfer);
             },
 

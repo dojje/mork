@@ -17,7 +17,10 @@ pub async fn reciever(code: String, sock: Arc<UdpSocket>, server_addr: SocketAdd
     let ip_for_code = IpForCode::from_raw(msg_buf.as_slice())?;
     let ip = ensure_global_ip(ip_for_code.ip, &server_addr);
     info!("file name: {}", &ip_for_code.file_name);
+    info!("file length: {}", &ip_for_code.file_len);
     info!("other ip: {}", &ip);
+
+    // TODO Check if file fits on disk
 
     // Punch hole
     punch_hole(&sock, ip).await?;

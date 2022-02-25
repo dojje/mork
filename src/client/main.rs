@@ -164,7 +164,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     
     match (args.action, args.input) {
         (Action::Give, Some(input)) => {
-            sender(input, sock, server_addr, SendMethod::Burst).await?;
+            sender(input, sock, server_addr, SendMethod::Index).await?;
         },
         (Action::Give, None) => {
             eprintln!("input file not set");
@@ -179,7 +179,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 },
             };
 
-            let send_method = SendMethod::Burst;
+            let send_method = SendMethod::Index;
             reciever(code, sock, server_addr, args.output, send_method).await?;
         },
     }

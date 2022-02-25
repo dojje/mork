@@ -10,9 +10,15 @@ use tokio::{net::UdpSocket, time};
 
 use crate::{recv, punch_hole, ensure_global_ip, SendMethod};
 
+fn get_file_len(file_name: &String) -> u64 {
+    let file = File::open(file_name).unwrap();
+
+    file.metadata().unwrap().len()
+}
 
 pub async fn sender(file_name: String, sock: Arc<UdpSocket>, server_addr: SocketAddr, send_method: SendMethod) -> Result<(), Box<dyn Error>> {
-    let have_file = HaveFile::new(file_name.clone());
+    let file_len = get_file_len(&file_name);
+    let have_file = HaveFile::new(file_name.clone(), file_len);
 
     // This will be used for all udp pings
     let mut interval = time::interval(Duration::from_millis(1500));

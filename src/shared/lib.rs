@@ -9,13 +9,15 @@ pub mod messages;
 pub struct Transfer {
     pub file_haver: SocketAddr,
     pub file_name: String,
+    pub file_len: u64,
 }
 
 impl Transfer {
-    pub fn new(file_haver: SocketAddr, file_name: String) -> Self {
+    pub fn new(file_haver: SocketAddr, file_name: String, file_len: u64) -> Self {
         Self {
             file_haver,
             file_name,
+            file_len,
         }
     }
 }
