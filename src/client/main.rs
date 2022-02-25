@@ -19,8 +19,6 @@ mod taker;
 const CONFIG_FILENAME: &'static str = "filesender_data.toml";
 // TODO longer codes
 // TODO fix clap order, make it so that you can use any order
-// TODO Remove msg_num from burst mode
-// TODO Make server send file info to reciever
 // TODO Check for enough disk space
 
 #[derive(Serialize, Deserialize)]

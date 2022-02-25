@@ -93,7 +93,7 @@ fn get_offset(msg_num: u64) -> u64 {
     msg_num * 500
 }
 
-fn write_buf_to_file(buf: &[u8], file: &mut File) {
+fn write_msg_with_num(buf: &[u8], file: &mut File) {
     let msg_num = get_msg_num(buf);
     let msg_offset = get_offset(msg_num);
 
@@ -102,6 +102,11 @@ fn write_buf_to_file(buf: &[u8], file: &mut File) {
 }
 
 async fn recv_file_index(file: &mut File, sock: Arc<UdpSocket>, ip: SocketAddr) -> Result<(), Box<dyn error::Error>> {
+    // TODO Create file for keeping track of messages
+    // When the giver think it's done it should say that to the taker
+    // the taker should check that it has recieved all packets
+    // If not, the taker should send what messages are unsent
+    // If there are too many for one message the other ones should be sent in the iteration
     loop {
         let wait_time = time::sleep(Duration::from_millis(2000));
         tokio::select! {
@@ -117,7 +122,7 @@ async fn recv_file_index(file: &mut File, sock: Arc<UdpSocket>, ip: SocketAddr) 
                     continue;
                 }
 
-                write_buf_to_file(&msg_buf, file);
+                write_msg_with_num(&msg_buf, file);
             }
         }
     }

@@ -103,8 +103,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let (amt, src) = sock.recv_from(&mut buf).await?;
         let msg_buf = &buf[0..amt];
 
-        // TODO Spawn new thread for every message
-
         let msg_res = get_msg_from_raw(msg_buf);
         let msg = match msg_res {
             Ok(msg) => msg,
