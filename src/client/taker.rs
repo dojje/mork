@@ -37,7 +37,9 @@ pub async fn reciever(code: String, sock: Arc<UdpSocket>, server_addr: SocketAdd
             recv_file_burst(&mut file, sock, ip).await?;
         },
         SendMethod::Confirm => todo!(),
-        SendMethod::Index => todo!(),
+        SendMethod::Index => {
+            recv_file_index(&mut file, sock, ip).await?;
+        },
     }
     
     Ok(())
@@ -75,9 +77,8 @@ async fn recv_file_burst(file: &mut File, sock: Arc<UdpSocket>, ip: SocketAddr) 
                     // Skip if the first iteration is a hole punch msg
                     continue;
                 }
-                let rest = &msg_buf[8..];
 
-                file.write(&rest).unwrap();
+                file.write(&msg_buf).unwrap();
             }
         }
     }

@@ -57,7 +57,9 @@ pub async fn sender(file_name: String, sock: Arc<UdpSocket>, server_addr: Socket
                             send_file_burst(sock_send, file_name, correct_ip).await.expect("could not send file");
                         },
                         SendMethod::Confirm => todo!(),
-                        SendMethod::Index => todo!(),
+                        SendMethod::Index => {
+                            send_file_index(sock_send, file_name, correct_ip).await.expect("could not send file");
+                        },
                     }
                 });
                 // send_file_to(sock.clone(), )
@@ -75,7 +77,42 @@ fn get_buf(msg_num: &u64, file_buf: &[u8]) -> Vec<u8> {
 }
 
 async fn send_file_burst(sock: Arc<UdpSocket>, file_name: String, reciever: SocketAddr) -> Result<(), Box<dyn error::Error>> {
-    // TODO Make it truly burst, do not send packet index
+    info!("reciever ip: {}", reciever);
+
+    punch_hole(&sock, reciever).await?;
+
+    thread::sleep(Duration::from_millis(1000));
+
+    // Udp messages should be 508 bytes
+    // 8 of those bytes are used for checking order of recieving bytes
+    // The rest 500 bytes are used to send the file
+    // The file gets send 500 bytes 
+    let input_file = File::open(file_name)?;
+    let file_len = input_file.metadata()?.len();
+    let mut offset = 0;
+    info!("will send {} bytes in {} packets", file_len, file_len / 500 + 1);
+    loop {
+        let mut file_buf = [0u8;500];
+        #[cfg(target_os = "linux")]
+        let amt = input_file.read_at(&mut file_buf, offset)?;
+
+        #[cfg(target_os = "windows")]
+        let amt = input_file.seek_read(&mut file_buf, offset)?;
+
+        sock.send_to(&file_buf[0..amt], reciever).await?;
+
+        offset += 500;
+        if offset >= file_len {
+            break;
+        }
+
+    }
+    info!("done sending file");
+
+    Ok(())
+}
+
+async fn send_file_index(sock: Arc<UdpSocket>, file_name: String, reciever: SocketAddr) -> Result<(), Box<dyn error::Error>> {
     info!("reciever ip: {}", reciever);
 
     punch_hole(&sock, reciever).await?;
