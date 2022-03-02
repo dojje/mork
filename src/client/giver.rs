@@ -1,14 +1,24 @@
-use std::{net::SocketAddr, error::{Error, self}, time::Duration, thread, fs::{File}, sync::Arc, };
-#[cfg(target_os = "windows")]
-use std::os::windows::prelude::FileExt;
 #[cfg(target_os = "linux")]
 use std::os::unix::fs::FileExt;
+#[cfg(target_os = "windows")]
+use std::os::windows::prelude::FileExt;
+use std::{
+    error::{self, Error},
+    fs::File,
+    net::SocketAddr,
+    sync::Arc,
+    thread,
+    time::Duration,
+};
 
 use log::info;
-use shared::{messages::{have_file::HaveFile, you_have_file::{YouHaveFile}, taker_ip::{TakerIp}, Message}, send_msg};
+use shared::{
+    messages::{have_file::HaveFile, taker_ip::TakerIp, you_have_file::YouHaveFile, Message},
+    send_msg,
+};
 use tokio::{net::UdpSocket, time};
 
-use crate::{recv, punch_hole, ensure_global_ip, SendMethod};
+use crate::{ensure_global_ip, punch_hole, recv, SendMethod};
 
 fn get_file_len(file_name: &String) -> u64 {
     let file = File::open(file_name).unwrap();
@@ -16,7 +26,12 @@ fn get_file_len(file_name: &String) -> u64 {
     file.metadata().unwrap().len()
 }
 
-pub async fn sender(file_name: String, sock: Arc<UdpSocket>, server_addr: SocketAddr, send_method: SendMethod) -> Result<(), Box<dyn Error>> {
+pub async fn sender(
+    file_name: String,
+    sock: Arc<UdpSocket>,
+    server_addr: SocketAddr,
+    send_method: SendMethod,
+) -> Result<(), Box<dyn Error>> {
     let file_len = get_file_len(&file_name);
     let have_file = HaveFile::new(file_name.clone(), file_len);
 
@@ -28,7 +43,7 @@ pub async fn sender(file_name: String, sock: Arc<UdpSocket>, server_addr: Socket
                 info!("contacting server");
                 send_msg(&sock, &have_file, server_addr).await?;
             }
-            
+
             result = recv(&sock, &server_addr) => {
                 let msg_buf = result?;
                 let you_have_file = YouHaveFile::from_raw(msg_buf.as_slice())?;
@@ -48,7 +63,7 @@ pub async fn sender(file_name: String, sock: Arc<UdpSocket>, server_addr: Socket
                 // keep hole punched to server
                 sock.send_to(&[255u8], server_addr).await?;
             }
-            
+
             result = recv(&sock_recv, &server_addr) => {
                 let msg_buf = result?;
                 let taker_ip = TakerIp::from_raw(msg_buf.as_slice())?;
@@ -71,7 +86,7 @@ pub async fn sender(file_name: String, sock: Arc<UdpSocket>, server_addr: Socket
                 // send_file_to(sock.clone(), )
             }
         }
-    };
+    }
 }
 
 fn get_buf(msg_num: &u64, file_buf: &[u8]) -> Vec<u8> {
@@ -82,7 +97,11 @@ fn get_buf(msg_num: &u64, file_buf: &[u8]) -> Vec<u8> {
     full
 }
 
-async fn send_file_burst(sock: Arc<UdpSocket>, file_name: String, reciever: SocketAddr) -> Result<(), Box<dyn error::Error>> {
+async fn send_file_burst(
+    sock: Arc<UdpSocket>,
+    file_name: String,
+    reciever: SocketAddr,
+) -> Result<(), Box<dyn error::Error>> {
     info!("reciever ip: {}", reciever);
 
     punch_hole(&sock, reciever).await?;
@@ -92,13 +111,17 @@ async fn send_file_burst(sock: Arc<UdpSocket>, file_name: String, reciever: Sock
     // Udp messages should be 508 bytes
     // 8 of those bytes are used for checking order of recieving bytes
     // The rest 500 bytes are used to send the file
-    // The file gets send 500 bytes 
+    // The file gets send 500 bytes
     let input_file = File::open(file_name)?;
     let file_len = input_file.metadata()?.len();
     let mut offset = 0;
-    info!("will send {} bytes in {} packets", file_len, file_len / 500 + 1);
+    info!(
+        "will send {} bytes in {} packets",
+        file_len,
+        file_len / 500 + 1
+    );
     loop {
-        let mut file_buf = [0u8;500];
+        let mut file_buf = [0u8; 500];
         #[cfg(target_os = "linux")]
         let amt = input_file.read_at(&mut file_buf, offset)?;
 
@@ -111,14 +134,17 @@ async fn send_file_burst(sock: Arc<UdpSocket>, file_name: String, reciever: Sock
         if offset >= file_len {
             break;
         }
-
     }
     info!("done sending file");
 
     Ok(())
 }
 
-async fn send_file_index(sock: Arc<UdpSocket>, file_name: String, reciever: SocketAddr) -> Result<(), Box<dyn error::Error>> {
+async fn send_file_index(
+    sock: Arc<UdpSocket>,
+    file_name: String,
+    reciever: SocketAddr,
+) -> Result<(), Box<dyn error::Error>> {
     info!("reciever ip: {}", reciever);
 
     punch_hole(&sock, reciever).await?;
@@ -128,14 +154,18 @@ async fn send_file_index(sock: Arc<UdpSocket>, file_name: String, reciever: Sock
     // Udp messages should be 508 bytes
     // 8 of those bytes are used for checking order of recieving bytes
     // The rest 500 bytes are used to send the file
-    // The file gets send 500 bytes 
+    // The file gets send 500 bytes
     let input_file = File::open(file_name)?;
     let file_len = input_file.metadata()?.len();
     let mut offset = 0;
     let mut msg_num: u64 = 0;
-    info!("will send {} bytes in {} packets", file_len, file_len / 500 + 1);
+    info!(
+        "will send {} bytes in {} packets",
+        file_len,
+        file_len / 500 + 1
+    );
     loop {
-        let mut file_buf = [0u8;500];
+        let mut file_buf = [0u8; 500];
         #[cfg(target_os = "linux")]
         let amt = input_file.read_at(&mut file_buf, offset)?;
 
@@ -158,7 +188,7 @@ async fn send_file_index(sock: Arc<UdpSocket>, file_name: String, reciever: Sock
 }
 
 // ** THE PROGRESS TRACKER **
-// 
+//
 // It works by having an array of bits of all messages
 // It's the lengh of all messages that should be recieved
 // When a message is recieved, the bit for that message will flip

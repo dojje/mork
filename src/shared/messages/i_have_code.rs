@@ -1,5 +1,5 @@
 use message_derive::Message;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use super::Message;
 
@@ -11,8 +11,6 @@ pub struct IHaveCode {
 
 impl IHaveCode {
     pub fn new(code: String) -> Self {
-        Self {
-            code
-        }
+        Self { code }
     }
 }

@@ -1,9 +1,9 @@
 use std::net::SocketAddr;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-use message_derive::Message;
 use super::Message;
+use message_derive::Message;
 
 #[derive(Serialize, Deserialize, Message)]
 #[message(msg_code = 3)]
@@ -13,8 +13,6 @@ pub struct TakerIp {
 
 impl TakerIp {
     pub fn new(ip: SocketAddr) -> Self {
-        Self {
-            ip,
-        }
+        Self { ip }
     }
 }

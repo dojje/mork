@@ -1,15 +1,33 @@
 #![feature(ip)]
-use std::{net::{SocketAddr}, error::{Error}, fs::{File, self}, io::Write, path::{Path}, vec, str::FromStr, process, sync::{Arc}};
+use std::{
+    error,
+    error::Error,
+    fs::{self, File},
+    io::Write,
+    net::SocketAddr,
+    path::Path,
+    process,
+    str::FromStr,
+    sync::Arc,
+    vec,
+};
 
 use chrono::Local;
+use clap::Parser;
 use colored::Colorize;
 use env_logger::Builder;
 use log::{info, LevelFilter};
-use rand::{Rng};
-use serde::{Serialize, Deserialize};
-use shared::{messages::{you_have_file::{YouHaveFile}, ServerMsg, Message, ip_for_code::IpForCode, taker_ip::TakerIp, }};
+use rand::Rng;
+use serde::{Deserialize, Serialize};
+use shared::messages::{
+    ip_for_code::IpForCode, taker_ip::TakerIp, you_have_file::YouHaveFile, Message, ServerMsg,
+};
 use tokio::net::UdpSocket;
-use clap::Parser;
+
+#[cfg(target_os = "linux")]
+use std::os::unix::fs::FileExt;
+#[cfg(target_os = "windows")]
+use std::os::windows::prelude::FileExt;
 
 use crate::{giver::sender, taker::reciever};
 
@@ -21,25 +39,44 @@ const CONFIG_FILENAME: &'static str = "filesender_data.toml";
 // TODO fix clap order, make it so that you can use any order
 // TODO Check for enough disk space
 
+fn read_position(file: &File, buf: &mut [u8], offset: u64) -> Result<usize, Box<dyn error::Error>> {
+    #[cfg(target_os = "linux")]
+    let amt = file.read_at(buf, offset)?;
+
+    #[cfg(target_os = "windows")]
+    let amt = file.seek_read(buf, offset)?;
+
+    Ok(amt)
+}
+
+fn write_position(file: &File, buf: &[u8], offset: u64) -> Result<usize, Box<dyn error::Error>> {
+    #[cfg(target_os = "linux")]
+    let amt = file.write_at(&buf, offset)?;
+
+    #[cfg(target_os = "windows")]
+    let amt = file.seek_write(&file_buf, offset)?;
+
+    Ok(amt)
+}
+
 #[derive(Serialize, Deserialize)]
 struct Config {
-    server_ips: Vec<String>
+    server_ips: Vec<String>,
 }
 
 impl Config {
     fn new() -> Self {
         Self {
-            server_ips: vec!["127.0.0.1:47335".to_string()]
+            server_ips: vec!["127.0.0.1:47335".to_string()],
         }
     }
 }
 
-
 #[derive(Clone)]
 pub enum SendMethod {
-    Burst, // Send packets without any sort of check
+    Burst,   // Send packets without any sort of check
     Confirm, // The reciever needs to confirm that a packet has been sent
-    Index, // The sender sends the index of the packet, it get's placed where it belongs
+    Index,   // The sender sends the index of the packet, it get's placed where it belongs
 }
 
 // Things for clap
@@ -47,9 +84,8 @@ pub enum SendMethod {
 #[derive(clap::Subcommand, Debug)]
 enum Action {
     Give,
-    Take
+    Take,
 }
-
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -70,21 +106,17 @@ struct Args {
     output: Option<String>,
 
     #[clap(short, long, default_value = "seq")]
-    recv_mode: String
+    recv_mode: String,
 }
 
 fn _get_msg_from_raw(raw: &[u8]) -> Result<ServerMsg, &'static str> {
     if let Ok(have_file) = YouHaveFile::from_raw(raw) {
         Ok(ServerMsg::YouHaveFile(have_file))
-    }
-    else if let Ok(i_have_code) = IpForCode::from_raw(raw) {
+    } else if let Ok(i_have_code) = IpForCode::from_raw(raw) {
         Ok(ServerMsg::IpForCode(i_have_code))
-    }
-    else if let Ok(taker_ip) = TakerIp::from_raw(raw) {
+    } else if let Ok(taker_ip) = TakerIp::from_raw(raw) {
         Ok(ServerMsg::TakerIp(taker_ip))
-    }
-
-    else {
+    } else {
         Err("could not make into any message")
     }
 }
@@ -107,8 +139,8 @@ fn get_config() -> Config {
         write!(&mut file, "{}", confing_str).unwrap();
     }
 
-    let contents = fs::read_to_string(CONFIG_FILENAME)
-        .expect("Something went wrong reading the appdata file");
+    let contents =
+        fs::read_to_string(CONFIG_FILENAME).expect("Something went wrong reading the appdata file");
 
     let config: Config = toml::from_str(contents.as_str()).unwrap();
 
@@ -132,7 +164,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // init log
     Builder::new()
         .format(|buf, record| {
-            writeln!(buf,
+            writeln!(
+                buf,
                 "{} [{}] - {}",
                 Local::now().format("%Y-%m-%d %H:%M:%S"),
                 record.level().to_string().blue(),
@@ -150,7 +183,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let server_addr = SocketAddr::from_str(config.server_ips[0].as_str())?;
     info!("server ip is {}", server_addr);
 
-
     // Come up with port
     let mut rng = rand::thread_rng();
     let port: u16 = rng.gen_range(8192..u16::MAX);
@@ -159,11 +191,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     info!("binding to addr");
     let sock = Arc::new(UdpSocket::bind(addr).await?);
-    
+
     match (args.action, args.input) {
         (Action::Give, Some(input)) => {
             sender(input, sock, server_addr, SendMethod::Index).await?;
-        },
+        }
         (Action::Give, None) => {
             eprintln!("input file not set");
             process::exit(0);
@@ -174,12 +206,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 None => {
                     eprintln!("code must be set");
                     process::exit(0);
-                },
+                }
             };
 
             let send_method = SendMethod::Index;
             reciever(code, sock, server_addr, args.output, send_method).await?;
-        },
+        }
     }
 
     Ok(())
@@ -187,7 +219,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 async fn recv(sock: &UdpSocket, from: &SocketAddr) -> Result<Vec<u8>, Box<dyn Error>> {
     loop {
-        let mut buf = [0u8;8192];
+        let mut buf = [0u8; 8192];
         let (amt, src) = sock.recv_from(&mut buf).await?;
 
         if &src == from {
