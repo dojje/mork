@@ -15,7 +15,7 @@ use std::{
 };
 use tokio::{net::UdpSocket, time};
 
-use crate::{ensure_global_ip, punch_hole, recv, write_position, read_position, SendMethod};
+use crate::{ensure_global_ip, punch_hole, read_position, recv, write_position, SendMethod};
 
 pub async fn reciever(
     code: String,

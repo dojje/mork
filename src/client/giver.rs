@@ -8,12 +8,12 @@ use std::{
 };
 
 use log::info;
-use shared::{
-    messages::{have_file::HaveFile, taker_ip::TakerIp, you_have_file::YouHaveFile, Message},
+use shared::messages::{
+    have_file::HaveFile, taker_ip::TakerIp, you_have_file::YouHaveFile, Message,
 };
 use tokio::{net::UdpSocket, time};
 
-use crate::{ensure_global_ip, punch_hole, recv, SendMethod, read_position};
+use crate::{ensure_global_ip, punch_hole, read_position, recv, SendMethod};
 
 fn get_file_len(file_name: &String) -> Result<u64, Box<dyn error::Error>> {
     let file = File::open(file_name)?;
@@ -21,7 +21,11 @@ fn get_file_len(file_name: &String) -> Result<u64, Box<dyn error::Error>> {
     Ok(file.metadata().unwrap().len())
 }
 
-async fn send_unil_recv(sock: &UdpSocket, msg: &[u8], addr: &SocketAddr) -> Result<Vec<u8>, Box<dyn error::Error>>{
+async fn send_unil_recv(
+    sock: &UdpSocket,
+    msg: &[u8],
+    addr: &SocketAddr,
+) -> Result<Vec<u8>, Box<dyn error::Error>> {
     let mut interval = time::interval(Duration::from_millis(1500));
     let msg_buf = loop {
         tokio::select! {
@@ -71,15 +75,18 @@ pub async fn sender(
         tokio::spawn(async move {
             match &send_method {
                 SendMethod::Burst => {
-                    send_file_burst(sock_send, file_name, correct_ip).await.expect("could not send file");
-                },
+                    send_file_burst(sock_send, file_name, correct_ip)
+                        .await
+                        .expect("could not send file");
+                }
                 SendMethod::Confirm => todo!(),
                 SendMethod::Index => {
-                    send_file_index(sock_send, file_name, correct_ip).await.expect("could not send file");
-                },
+                    send_file_index(sock_send, file_name, correct_ip)
+                        .await
+                        .expect("could not send file");
+                }
             }
         });
-
     }
 }
 
