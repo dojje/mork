@@ -38,6 +38,9 @@ const CONFIG_FILENAME: &'static str = "filesender_data.toml";
 // TODO longer codes
 // TODO fix clap order, make it so that you can use any order
 // TODO Check for enough disk space
+// TODO Function for getting new server list
+// TODO Function for updating program
+// TODO Check if file exists before sending
 
 fn read_position(file: &File, buf: &mut [u8], offset: u64) -> Result<usize, Box<dyn error::Error>> {
     #[cfg(target_os = "linux")]
