@@ -179,6 +179,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Read arguemts
     let args = Args::parse();
+    #[cfg(feature = "sim_wan")]
+    info!("simulating wide area network");
 
     // Read from config
     let config = get_config();

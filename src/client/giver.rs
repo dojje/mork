@@ -3,17 +3,22 @@ use std::{
     fs::File,
     net::SocketAddr,
     sync::Arc,
-    thread,
     time::Duration,
 };
 
-use log::info;
 use shared::messages::{
     have_file::HaveFile, taker_ip::TakerIp, you_have_file::YouHaveFile, Message,
 };
 use tokio::{net::UdpSocket, time};
 
-use crate::{ensure_global_ip, punch_hole, read_position, recv, SendMethod};
+use crate::{
+    ensure_global_ip,
+    giver::{send_burst::send_file_burst, send_index::send_file_index},
+    recv, SendMethod,
+};
+
+mod send_burst;
+mod send_index;
 
 fn get_file_len(file_name: &String) -> Result<u64, Box<dyn error::Error>> {
     let file = File::open(file_name)?;
@@ -96,88 +101,6 @@ fn get_buf(msg_num: &u64, file_buf: &[u8]) -> Vec<u8> {
     let full = [&msg_num_u8, file_buf].concat();
 
     full
-}
-
-async fn send_file_burst(
-    sock: Arc<UdpSocket>,
-    file_name: String,
-    reciever: SocketAddr,
-) -> Result<(), Box<dyn error::Error>> {
-    info!("reciever ip: {}", reciever);
-
-    punch_hole(&sock, reciever).await?;
-
-    thread::sleep(Duration::from_millis(1000));
-
-    // Udp messages should be 508 bytes
-    // 8 of those bytes are used for checking order of recieving bytes
-    // The rest 500 bytes are used to send the file
-    // The file gets send 500 bytes
-    let input_file = File::open(file_name)?;
-    let file_len = input_file.metadata()?.len();
-    let mut offset = 0;
-    info!(
-        "will send {} bytes in {} packets",
-        file_len,
-        file_len / 500 + 1
-    );
-    loop {
-        let mut file_buf = [0u8; 500];
-        let amt = read_position(&input_file, &mut file_buf, offset)?;
-
-        sock.send_to(&file_buf[0..amt], reciever).await?;
-
-        offset += 500;
-        if offset >= file_len {
-            break;
-        }
-    }
-    info!("done sending file");
-
-    Ok(())
-}
-
-async fn send_file_index(
-    sock: Arc<UdpSocket>,
-    file_name: String,
-    reciever: SocketAddr,
-) -> Result<(), Box<dyn error::Error>> {
-    info!("reciever ip: {}", reciever);
-
-    punch_hole(&sock, reciever).await?;
-
-    thread::sleep(Duration::from_millis(1000));
-
-    // Udp messages should be 508 bytes
-    // 8 of those bytes are used for checking order of recieving bytes
-    // The rest 500 bytes are used to send the file
-    // The file gets send 500 bytes
-    let input_file = File::open(file_name)?;
-    let file_len = input_file.metadata()?.len();
-    let mut offset = 0;
-    let mut msg_num: u64 = 0;
-    info!(
-        "will send {} bytes in {} packets",
-        file_len,
-        file_len / 500 + 1
-    );
-    loop {
-        let mut file_buf = [0u8; 500];
-        let amt = read_position(&input_file, &mut file_buf, offset)?;
-
-        let buf = get_buf(&msg_num, &file_buf[0..amt]);
-        sock.send_to(buf.as_slice(), reciever).await?;
-
-        offset += 500;
-        if offset >= file_len {
-            break;
-        }
-
-        msg_num += 1;
-    }
-    info!("done sending file");
-
-    Ok(())
 }
 
 // ** THE PROGRESS TRACKER **

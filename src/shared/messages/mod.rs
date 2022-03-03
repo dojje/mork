@@ -12,6 +12,7 @@ pub mod you_have_file;
 pub enum ClientMsg {
     HaveFile(have_file::HaveFile),
     IHaveCode(i_have_code::IHaveCode),
+    None,
 }
 
 pub enum ServerMsg {
@@ -25,3 +26,12 @@ pub trait Message {
     where
         Self: Sized;
 }
+
+// have_file: 0
+// i_have_code: 1
+// ip_for_code: 2
+// taker_ip: 3
+// you_have_file: 4
+// done_sending: 5
+// missed_messages: 6
+// all_messages are sent: 7

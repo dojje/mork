@@ -19,6 +19,9 @@ message-derive = {path = "message-derive"}
 clap = { version = "3.1.0", features = ["derive"] }
 rand = "0.8.5"
 
+[features]
+sim_wan = []
+
 [[bin]]
 name = "client"
 path = "src/client/main.rs"

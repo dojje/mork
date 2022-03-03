@@ -23,6 +23,8 @@ fn get_msg_from_raw(raw: &[u8]) -> Result<ClientMsg, &'static str> {
         Ok(ClientMsg::HaveFile(have_file))
     } else if let Ok(i_have_code) = IHaveCode::from_raw(raw) {
         Ok(ClientMsg::IHaveCode(i_have_code))
+    } else if raw == &[0u8] {
+        Ok(ClientMsg::None)
     } else {
         Err("could not make into any message")
     }
@@ -115,6 +117,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 let resp_raw = resp.to_raw();
                 sock.send_to(resp_raw.as_slice(), src).await?;
             }
+            ClientMsg::None => {}
         }
     }
 }
