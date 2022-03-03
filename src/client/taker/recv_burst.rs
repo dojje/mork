@@ -12,20 +12,22 @@ pub async fn recv_file_burst(
 ) -> Result<(), Box<dyn error::Error>> {
     loop {
         let wait_time = time::sleep(Duration::from_millis(2000));
+        let mut buf = [0u8;508];
         tokio::select! {
             _ = wait_time => {
                 info!("No message has been recieved for 2000ms, exiting!");
                 break;
             }
-            msg_buf = recv(&sock, &ip) => {
-                let msg_buf = msg_buf?;
+            amt = recv(&sock, &ip, &mut buf) => {
+                let amt = amt?;
+                let buf = &buf[0..amt];
 
-                if msg_buf.len() == 1 && msg_buf[0] == 255 {
+                if buf.len() == 1 && buf[0] == 255 {
                     // Skip if the first iteration is a hole punch msg
                     continue;
                 }
 
-                file.write(&msg_buf).unwrap();
+                file.write(&buf).unwrap();
             }
         }
     }

@@ -41,33 +41,36 @@ pub async fn recv_file_index(
 
     loop {
         let wait_time = time::sleep(Duration::from_millis(2000));
+        let mut buf = [0;508];
         tokio::select! {
             _ = wait_time => {
                 info!("No message has been recieved for 2000ms, exiting!");
                 break;
             }
-            msg_buf = recv(&sock, &ip) => {
-                let msg_buf = msg_buf?;
-                debug!("got msg with type: {}", msg_buf[0]);
+            amt = recv(&sock, &ip, &mut buf) => {
+                let amt = amt?;
+                let buf = &buf[0..amt];
+
+                debug!("got msg with type: {}", buf[0]);
 
                 // Skip if the first iteration is a hole punch msg
-                if msg_buf.len() == 1 && msg_buf[0] == 255 {
+                if buf.len() == 1 && buf[0] == 255 {
                     debug!("msg was just a holepunch");
                     continue;
                 }
-                else if msg_buf.len() == 1 && msg_buf[0] == 5 {
+                else if buf.len() == 1 && buf[0] == 5 {
                     // Done sending
                     break;
                 }
 
                 // Get msg num
-                let msg_num = u8s_to_u64(&msg_buf[0..8])?;
+                let msg_num = u8s_to_u64(&buf[0..8])?;
 
                 debug!("msg num: {}", msg_num);
                 let msg_offset = get_offset(msg_num);
 
                 // Write the data of the msg to file
-                let rest = &msg_buf[8..];
+                let rest = &buf[8..];
                 write_position(file, &rest, msg_offset).unwrap();
                 debug!("wrote data");
 

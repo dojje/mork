@@ -3,7 +3,7 @@ use std::{error, fs::File, net::SocketAddr, sync::Arc, thread, time::Duration};
 use log::info;
 use tokio::net::UdpSocket;
 
-use crate::{giver::get_buf, punch_hole, read_position, u8s_to_u64};
+use crate::{giver::get_buf, punch_hole, read_position, u8s_to_u64, recv};
 
 fn get_file_buf_from_msg_num(
     msg: u64,
@@ -67,17 +67,15 @@ pub async fn send_file_index(
     info!("done sending file");
 
     // Send message telling client it's done
+    // TODO Make sure this get's through
     sock.send_to(&[5], reciever).await?;
 
     // Get missed messages
     let mut buf = [0u8; 508];
-    let (amt, src) = sock.recv_from(&mut buf).await?;
-    if src != reciever {
-        // TODO Make sure this comes from the right sender
-        info!("wrong reciever");
-    }
+
+    let amt = recv(&sock, &reciever, &mut buf).await?;
     // This will be an array of u64s with missed things
-    // The first will be a
+    // The first will be a message
     let buf = &buf[0..amt];
     if buf[0] != 6 {
         // 6 is missed

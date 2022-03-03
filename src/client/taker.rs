@@ -30,9 +30,11 @@ pub async fn reciever(
     let i_have_code = IHaveCode::new(code);
     send_msg(&sock, &i_have_code, &server_addr).await?;
 
-    let msg_buf = recv(&sock, &server_addr).await?;
+    let mut buf = [0u8;508];
+    let amt = recv(&sock, &server_addr, &mut buf).await?;
+    let buf = &buf[0..amt];
 
-    let ip_for_code = IpForCode::from_raw(msg_buf.as_slice())?;
+    let ip_for_code = IpForCode::from_raw(buf)?;
     let ip = ensure_global_ip(ip_for_code.ip, &server_addr);
     info!("file name: {}", &ip_for_code.file_name);
     info!("file length: {}", &ip_for_code.file_len);

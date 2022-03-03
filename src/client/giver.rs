@@ -30,24 +30,25 @@ async fn send_unil_recv(
     sock: &UdpSocket,
     msg: &[u8],
     addr: &SocketAddr,
-) -> Result<Vec<u8>, Box<dyn error::Error>> {
+    buf: &mut [u8]
+) -> Result<usize, Box<dyn error::Error>> {
     let mut interval = time::interval(Duration::from_millis(1500));
-    let msg_buf = loop {
+    let amt = loop {
         tokio::select! {
             _ = interval.tick() => {
                 sock.send_to(&msg, addr).await?;
             }
 
-            result = recv(&sock, &addr) => {
-                let msg_buf = result?;
-                break msg_buf;
+            result = recv(&sock, &addr, buf) => {
+                let amt = result?;
+                break amt;
                 // let you_have_file = YouHaveFile::from_raw(msg_buf.as_slice())?;
                 // break you_have_file;
             }
         }
     };
 
-    Ok(msg_buf)
+    Ok(amt)
 }
 
 pub async fn sender(
@@ -62,16 +63,21 @@ pub async fn sender(
     };
     let have_file = HaveFile::new(file_name.clone(), file_len);
 
-    let msg_buf = send_unil_recv(&sock, &have_file.to_raw(), &server_addr).await?;
-    let you_have_file = YouHaveFile::from_raw(&msg_buf)?;
+    let mut buf = [0u8;508];
+    let amt = send_unil_recv(&sock, &have_file.to_raw(), &server_addr, &mut buf).await?;
+    let buf = &buf[0..amt];
+    let you_have_file = YouHaveFile::from_raw(&buf)?;
 
     let code = you_have_file.code;
     println!("Code for recv: {}", &code);
 
     // Wait for taker ip
     loop {
-        let msg_buf = send_unil_recv(&sock, &[255u8], &server_addr).await?;
-        let taker_ip = TakerIp::from_raw(msg_buf.as_slice())?;
+        let mut buf =  [0;508];
+        let amt = send_unil_recv(&sock, &[255u8], &server_addr, &mut buf).await?;
+        let buf = &buf[0..amt];
+
+        let taker_ip = TakerIp::from_raw(buf)?;
 
         let correct_ip = ensure_global_ip(taker_ip.ip, &server_addr);
         let file_name = file_name.clone();

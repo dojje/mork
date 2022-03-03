@@ -254,14 +254,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn recv(sock: &UdpSocket, from: &SocketAddr) -> Result<Vec<u8>, Box<dyn Error>> {
+async fn recv(sock: &UdpSocket, from: &SocketAddr, buf: &mut [u8]) -> Result<usize, Box<dyn Error>> {
     loop {
-        let mut buf = [0u8; 8192];
-        let (amt, src) = sock.recv_from(&mut buf).await?;
+        let (amt, src) = sock.recv_from(buf).await?;
 
         if &src == from {
-            let msg_buf = &buf[0..amt];
-            return Ok(msg_buf.to_owned());
+            return Ok(amt);
         }
     }
 }
