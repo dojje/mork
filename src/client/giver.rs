@@ -15,10 +15,10 @@ use tokio::{net::UdpSocket, time};
 
 use crate::{ensure_global_ip, punch_hole, recv, SendMethod, read_position};
 
-fn get_file_len(file_name: &String) -> u64 {
-    let file = File::open(file_name).unwrap();
+fn get_file_len(file_name: &String) -> Result<u64, Box<dyn error::Error>> {
+    let file = File::open(file_name)?;
 
-    file.metadata().unwrap().len()
+    Ok(file.metadata().unwrap().len())
 }
 
 async fn send_unil_recv(sock: &UdpSocket, msg: &[u8], addr: &SocketAddr) -> Result<Vec<u8>, Box<dyn error::Error>>{
@@ -47,10 +47,11 @@ pub async fn sender(
     server_addr: SocketAddr,
     send_method: SendMethod,
 ) -> Result<(), Box<dyn Error>> {
-    let file_len = get_file_len(&file_name);
+    let file_len = match get_file_len(&file_name) {
+        Ok(f) => f,
+        Err(_) => panic!("file {} doesn't exist", file_name),
+    };
     let have_file = HaveFile::new(file_name.clone(), file_len);
-
-    // This will be used for all udp pings
 
     let msg_buf = send_unil_recv(&sock, &have_file.to_raw(), &server_addr).await?;
     let you_have_file = YouHaveFile::from_raw(&msg_buf)?;
