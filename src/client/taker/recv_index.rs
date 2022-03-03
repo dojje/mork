@@ -184,7 +184,7 @@ pub async fn recv_file_index(
     }
 
     // TODO Creat function for getting dropped messages
-    let dropped = get_dropped("file_recv_index")?;
+    let dropped = get_dropped("filesender_recv_index", recv_size)?;
     for drop in dropped {
         debug!("dropped: {}", drop);
     }
@@ -193,7 +193,7 @@ pub async fn recv_file_index(
     Ok(())
 }
 
-fn get_dropped(index_filename: &str) -> Result<Vec<u64>, Box<dyn error::Error>> {
+fn get_dropped(index_filename: &str, file_len: u64) -> Result<Vec<u64>, Box<dyn error::Error>> {
     let file = File::open(index_filename)?;
 
     let mut dropped: Vec<u64> = Vec::new();
@@ -209,8 +209,13 @@ fn get_dropped(index_filename: &str) -> Result<Vec<u64>, Box<dyn error::Error>> 
 
         let mut bit_pos = 0;
         for bit in bin {
+            let num = get_num_of_pos(byte, bit_pos);
+            if num > file_len / 500 + 1 {
+                // Return if it has checked every bit
+                info!("num {} is too much", num);
+                return Ok(dropped);
+            }
             if !bit {
-                let num = get_num_of_pos(byte, bit_pos);
 
                 dropped.push(num);
                 if dropped.len() == 62{

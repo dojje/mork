@@ -48,6 +48,7 @@ fn new_code<T>(code_map: &HashMap<String, T>) -> Result<String, Box<dyn Error>> 
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    // TODO Set custom port
     // Init logger
     Builder::new()
         .format(|buf, record| {

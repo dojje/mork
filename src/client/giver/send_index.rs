@@ -5,6 +5,8 @@ use tokio::net::UdpSocket;
 
 use crate::{giver::get_buf, punch_hole, read_position, u8s_to_u64, recv};
 
+use rand::Rng;
+
 fn get_file_buf_from_msg_num(
     msg: u64,
     file: &File,
@@ -45,16 +47,17 @@ pub async fn send_file_index(
         let amt = read_position(&input_file, &mut file_buf, offset)?;
 
         let buf = get_buf(&msg_num, &file_buf[0..amt]);
-        // #[cfg(any(sim_wan))]
-        // {
-        //     let rng = rand::thread_rng();
-        //     let num: u8 = rng.gen_range(0..=1);
-        //     if num == 1 {
-        //         sock.send_to(buf.as_slice(), reciever).await?;
-        //     }
-        // }
-        #[cfg(not(sim_wan))]
-        sock.send_to(buf.as_slice(), reciever).await?;
+
+        #[cfg(feature = "sim_wan")]
+        {
+            let num = rand::random::<u8>();
+            
+            if num <= 127 {
+                sock.send_to(&buf, reciever).await?;
+            }
+        }
+        #[cfg(not(feature = "sim_wan"))]
+        sock.send_to(&buf, reciever).await?;
 
         offset += 500;
         if offset >= file_len {
@@ -67,7 +70,7 @@ pub async fn send_file_index(
     info!("done sending file");
 
     // Send message telling client it's done
-    // TODO Make sure this get's through
+    // TODO Make sure this gets through
     sock.send_to(&[5], reciever).await?;
 
     // Get missed messages
@@ -91,14 +94,14 @@ pub async fn send_file_index(
         let amt = get_file_buf_from_msg_num(missed_msg, &input_file, 500, &mut buf)?;
         let buf = &buf[0..amt];
 
-        // #[cfg(feature = "sim_wan")]
-        // {
-        //     let mut rng = rand::thread_rng();
-        //     let num: u8 = rng.gen_range(0..=1);
-        //     if num == 1 {
-        //         sock.send_to(buf, reciever).await?;
-        //     }
-        // }
+        #[cfg(feature = "sim_wan")]
+        {
+            let num = rand::random::<u8>();
+            
+            if num <= 127 {
+                sock.send_to(buf, reciever).await?;
+            }
+        }
         #[cfg(not(feature = "sim_wan"))]
         sock.send_to(buf, reciever).await?;
     }
