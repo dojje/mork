@@ -11,9 +11,93 @@ use tokio::{net::UdpSocket, time};
 
 use crate::{
     read_position, recv,
-    taker::{from_binary, get_offset, get_pos_of_num, to_binary},
     write_position, u8s_to_u64,
 };
+
+fn get_offset(msg_num: u64) -> u64 {
+    msg_num * 500
+}
+
+fn get_pos_of_num(num: u64) -> (u64, u8) {
+    let cell = num / 8;
+    let cellpos = num % 8;
+
+    (cell, cellpos as u8)
+}
+
+fn get_num_of_pos(byte: u64, pos: u8) -> u64 {
+    byte * 8 + pos as u64
+}
+
+fn to_binary(mut num: u8) -> [bool; 8] {
+    let mut arr = [false; 8];
+
+    if num >= 128 {
+        arr[0] = true;
+        num -= 128;
+    }
+    if num >= 64 {
+        arr[1] = true;
+        num -= 64;
+    }
+    if num >= 32 {
+        arr[2] = true;
+        num -= 32;
+    }
+    if num >= 16 {
+        arr[3] = true;
+        num -= 16;
+    }
+    if num >= 8 {
+        arr[4] = true;
+        num -= 8;
+    }
+    if num >= 4 {
+        arr[5] = true;
+        num -= 4;
+    }
+    if num >= 2 {
+        arr[6] = true;
+        num -= 2;
+    }
+    if num >= 1 {
+        arr[7] = true;
+        // num -= 1;
+    }
+
+    arr
+}
+
+fn from_binary(bin: [bool; 8]) -> u8 {
+    let mut num = 0;
+    if bin[0] {
+        num += 128;
+    }
+    if bin[1] {
+        num += 64;
+    }
+    if bin[2] {
+        num += 32;
+    }
+    if bin[3] {
+        num += 16;
+    }
+    if bin[4] {
+        num += 8;
+    }
+    if bin[5] {
+        num += 4;
+    }
+    if bin[6] {
+        num += 2;
+    }
+    if bin[7] {
+        num += 1;
+    }
+
+    num
+}
+
 
 pub async fn recv_file_index(
     file: &mut File,
@@ -47,6 +131,7 @@ pub async fn recv_file_index(
                 info!("No message has been recieved for 2000ms, exiting!");
                 break;
             }
+
             amt = recv(&sock, &ip, &mut buf) => {
                 let amt = amt?;
                 let buf = &buf[0..amt];
@@ -98,6 +183,46 @@ pub async fn recv_file_index(
         }
     }
 
+    // TODO Creat function for getting dropped messages
+    let dropped = get_dropped("file_recv_index")?;
+    for drop in dropped {
+        debug!("dropped: {}", drop);
+    }
+
     remove_file("filesender_recv_index")?;
     Ok(())
 }
+
+fn get_dropped(index_filename: &str) -> Result<Vec<u64>, Box<dyn error::Error>> {
+    let file = File::open(index_filename)?;
+
+    let mut dropped: Vec<u64> = Vec::new();
+
+    // let mut byte = num / 8;
+    // let mut pos = num % 8;
+
+    for byte in 0..file.metadata()?.len() {
+        // For every byte
+        let mut buf = [0u8];
+        read_position(&file, &mut buf, byte)?;
+        let bin = to_binary(buf[0]);
+
+        let mut bit_pos = 0;
+        for bit in bin {
+            if !bit {
+                let num = get_num_of_pos(byte, bit_pos);
+
+                dropped.push(num);
+                if dropped.len() == 62{
+                    return Ok(dropped);
+
+                }
+            }
+
+            bit_pos += 1;
+        }
+    }
+
+   Ok(dropped) 
+}
+
