@@ -3,7 +3,7 @@ use std::{error, fs::File, net::SocketAddr, sync::Arc, thread, time::Duration};
 use log::info;
 use tokio::net::UdpSocket;
 
-use crate::{giver::get_buf, punch_hole, read_position};
+use crate::{giver::get_buf, punch_hole, read_position, u8s_to_u64};
 
 fn get_file_buf_from_msg_num(
     msg: u64,
@@ -45,14 +45,14 @@ pub async fn send_file_index(
         let amt = read_position(&input_file, &mut file_buf, offset)?;
 
         let buf = get_buf(&msg_num, &file_buf[0..amt]);
-        #[cfg(any(sim_wan))]
-        {
-            let rng = rand::thread_rng();
-            let num: u8 = rng.gen_range(0..=1);
-            if num == 1 {
-                sock.send_to(buf.as_slice(), reciever).await?;
-            }
-        }
+        // #[cfg(any(sim_wan))]
+        // {
+        //     let rng = rand::thread_rng();
+        //     let num: u8 = rng.gen_range(0..=1);
+        //     if num == 1 {
+        //         sock.send_to(buf.as_slice(), reciever).await?;
+        //     }
+        // }
         #[cfg(not(sim_wan))]
         sock.send_to(buf.as_slice(), reciever).await?;
 
@@ -86,31 +86,21 @@ pub async fn send_file_index(
 
     let missed = &buf[1..];
     for i in 0..(missed.len() / 8) {
-        let msg_u8: [u8; 8] = [
-            missed[i + 0],
-            missed[i + 1],
-            missed[i + 2],
-            missed[i + 3],
-            missed[i + 4],
-            missed[i + 5],
-            missed[i + 6],
-            missed[i + 7],
-        ];
         // Convert bytes to offset
-        let missed_msg = u64::from_be_bytes(msg_u8);
+        let missed_msg = u8s_to_u64(&missed[i..i+8])?;
         let mut buf = [0u8; 500];
         // Read from file
         let amt = get_file_buf_from_msg_num(missed_msg, &input_file, 500, &mut buf)?;
         let buf = &buf[0..amt];
 
-        #[cfg(feature = "sim_wan")]
-        {
-            let mut rng = rand::thread_rng();
-            let num: u8 = rng.gen_range(0..=1);
-            if num == 1 {
-                sock.send_to(buf, reciever).await?;
-            }
-        }
+        // #[cfg(feature = "sim_wan")]
+        // {
+        //     let mut rng = rand::thread_rng();
+        //     let num: u8 = rng.gen_range(0..=1);
+        //     if num == 1 {
+        //         sock.send_to(buf, reciever).await?;
+        //     }
+        // }
         #[cfg(not(feature = "sim_wan"))]
         sock.send_to(buf, reciever).await?;
     }

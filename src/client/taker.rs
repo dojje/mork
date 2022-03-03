@@ -1,4 +1,4 @@
-use log::{info};
+use log::info;
 use shared::{
     messages::{i_have_code::IHaveCode, ip_for_code::IpForCode, Message},
     send_msg,
@@ -7,17 +7,13 @@ use shared::{
 #[cfg(target = "windows")]
 use std::os::windows::prelude::FileExt;
 
-use std::{
-    error::{Error},
-    fs::{File},
-    net::SocketAddr,
-    sync::Arc,
-};
-use tokio::{net::UdpSocket};
+use std::{error::Error, fs::File, net::SocketAddr, sync::Arc};
+use tokio::net::UdpSocket;
 
 use crate::{
     ensure_global_ip, punch_hole, recv,
-    taker::{recv_burst::recv_file_burst, recv_index::recv_file_index}, SendMethod,
+    taker::{recv_burst::recv_file_burst, recv_index::recv_file_index},
+    SendMethod,
 };
 
 mod recv_burst;
@@ -70,17 +66,6 @@ pub async fn reciever(
     Ok(())
 }
 
-fn get_msg_num(msg_buf: &[u8]) -> u64 {
-    let num_bytes: [u8; 8] = [
-        msg_buf[0], msg_buf[1], msg_buf[2], msg_buf[3], msg_buf[4], msg_buf[5], msg_buf[6],
-        msg_buf[7],
-    ];
-
-    let msg_num = u64::from_be_bytes(num_bytes);
-
-    msg_num
-}
-
 fn get_offset(msg_num: u64) -> u64 {
     msg_num * 500
 }
@@ -127,8 +112,6 @@ fn to_binary(mut num: u8) -> [bool; 8] {
         arr[7] = true;
         // num -= 1;
     }
-
-    // TODO make this function work
 
     arr
 }

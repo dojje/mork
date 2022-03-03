@@ -35,3 +35,5 @@ pub trait Message {
 // done_sending: 5
 // missed_messages: 6
 // all_messages are sent: 7
+
+// holepunch: 255

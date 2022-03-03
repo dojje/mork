@@ -11,8 +11,8 @@ use tokio::{net::UdpSocket, time};
 
 use crate::{
     read_position, recv,
-    taker::{from_binary, get_msg_num, get_offset, get_pos_of_num, to_binary},
-    write_position,
+    taker::{from_binary, get_offset, get_pos_of_num, to_binary},
+    write_position, u8s_to_u64,
 };
 
 pub async fn recv_file_index(
@@ -48,16 +48,21 @@ pub async fn recv_file_index(
             }
             msg_buf = recv(&sock, &ip) => {
                 let msg_buf = msg_buf?;
-                debug!("got msg");
+                debug!("got msg with type: {}", msg_buf[0]);
 
                 // Skip if the first iteration is a hole punch msg
                 if msg_buf.len() == 1 && msg_buf[0] == 255 {
                     debug!("msg was just a holepunch");
                     continue;
                 }
+                else if msg_buf.len() == 1 && msg_buf[0] == 5 {
+                    // Done sending
+                    break;
+                }
 
                 // Get msg num
-                let msg_num = get_msg_num(&msg_buf);
+                let msg_num = u8s_to_u64(&msg_buf[0..8])?;
+
                 debug!("msg num: {}", msg_num);
                 let msg_offset = get_offset(msg_num);
 
