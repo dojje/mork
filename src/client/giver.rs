@@ -13,8 +13,7 @@ use tokio::{net::UdpSocket, time};
 
 use crate::{
     ensure_global_ip,
-    giver::{send_burst::send_file_burst, send_index::send_file_index},
-    recv, SendMethod,
+    giver::{send_burst::send_file_burst, send_index::send_file_index}, SendMethod,
 };
 
 mod send_burst;
@@ -31,19 +30,22 @@ async fn send_unil_recv(
     msg: &[u8],
     addr: &SocketAddr,
     buf: &mut [u8],
+    interval: u64,
 ) -> Result<usize, Box<dyn error::Error>> {
-    let mut interval = time::interval(Duration::from_millis(1500));
+    let mut send_interval = time::interval(Duration::from_millis(interval));
     let amt = loop {
         tokio::select! {
-            _ = interval.tick() => {
-                sock.send_to(&msg, addr).await?;
+            _ = send_interval.tick() => {
+                sock.send_to(msg, addr).await?;
+
             }
 
-            result = recv(&sock, &addr, buf) => {
-                let amt = result?;
+            result = sock.recv_from(buf) => {
+                let (amt, src) = result?;
+                if &src != addr {
+                    continue;
+                }
                 break amt;
-                // let you_have_file = YouHaveFile::from_raw(msg_buf.as_slice())?;
-                // break you_have_file;
             }
         }
     };
@@ -64,7 +66,7 @@ pub async fn sender(
     let have_file = HaveFile::new(file_name.clone(), file_len);
 
     let mut buf = [0u8; 508];
-    let amt = send_unil_recv(&sock, &have_file.to_raw(), &server_addr, &mut buf).await?;
+    let amt = send_unil_recv(&sock, &have_file.to_raw(), &server_addr, &mut buf, 500).await?;
     let buf = &buf[0..amt];
     let you_have_file = YouHaveFile::from_raw(&buf)?;
 
@@ -74,7 +76,7 @@ pub async fn sender(
     // Wait for taker ip
     loop {
         let mut buf = [0; 508];
-        let amt = send_unil_recv(&sock, &[255u8], &server_addr, &mut buf).await?;
+        let amt = send_unil_recv(&sock, &[255u8], &server_addr, &mut buf, 1500).await?;
         let buf = &buf[0..amt];
 
         let taker_ip = TakerIp::from_raw(buf)?;
