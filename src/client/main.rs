@@ -2,14 +2,15 @@
 use std::{
     error,
     error::Error,
+    fmt,
     fs::{self, File},
-    io::{Write, self},
+    io::{self, Write},
     net::SocketAddr,
     path::Path,
     process,
     str::FromStr,
     sync::Arc,
-    vec, fmt,
+    vec,
 };
 
 use chrono::Local;
@@ -89,7 +90,6 @@ enum Action {
     Take,
 }
 
-
 // TODO Set custom port
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -163,7 +163,6 @@ fn ensure_global_ip(addr: SocketAddr, server_ip: &SocketAddr) -> SocketAddr {
     SocketAddr::new(server_ip.ip(), addr.port())
 }
 
-
 #[derive(Debug, Clone)]
 struct NotRightAmountError;
 
@@ -173,23 +172,15 @@ impl fmt::Display for NotRightAmountError {
     }
 }
 
-
 fn u8s_to_u64(nums: &[u8]) -> io::Result<u64> {
     if nums.len() != 8 {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            "nums must be 8 bytes long"
-        ))
+            "nums must be 8 bytes long",
+        ));
     }
     let msg_u8: [u8; 8] = [
-        nums[0],
-        nums[1],
-        nums[2],
-        nums[3],
-        nums[4],
-        nums[5],
-        nums[6],
-        nums[7],
+        nums[0], nums[1], nums[2], nums[3], nums[4], nums[5], nums[6], nums[7],
     ];
 
     let big_number = u64::from_be_bytes(msg_u8);
@@ -256,7 +247,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn recv(sock: &UdpSocket, from: &SocketAddr, buf: &mut [u8]) -> Result<usize, Box<dyn Error>> {
+async fn recv(
+    sock: &UdpSocket,
+    from: &SocketAddr,
+    buf: &mut [u8],
+) -> Result<usize, Box<dyn Error>> {
     loop {
         let (amt, src) = sock.recv_from(buf).await?;
 

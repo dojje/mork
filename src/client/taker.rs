@@ -30,7 +30,7 @@ pub async fn reciever(
     let i_have_code = IHaveCode::new(code);
     send_msg(&sock, &i_have_code, &server_addr).await?;
 
-    let mut buf = [0u8;508];
+    let mut buf = [0u8; 508];
     let amt = recv(&sock, &server_addr, &mut buf).await?;
     let buf = &buf[0..amt];
 

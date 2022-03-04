@@ -12,7 +12,7 @@ pub async fn recv_file_burst(
 ) -> Result<(), Box<dyn error::Error>> {
     loop {
         let wait_time = time::sleep(Duration::from_millis(2000));
-        let mut buf = [0u8;508];
+        let mut buf = [0u8; 508];
         tokio::select! {
             _ = wait_time => {
                 info!("No message has been recieved for 2000ms, exiting!");

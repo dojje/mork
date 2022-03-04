@@ -3,9 +3,7 @@ use std::{error, fs::File, net::SocketAddr, sync::Arc, thread, time::Duration};
 use log::info;
 use tokio::net::UdpSocket;
 
-use crate::{giver::get_buf, punch_hole, read_position, u8s_to_u64, recv};
-
-use rand::Rng;
+use crate::{giver::get_buf, punch_hole, read_position, recv, u8s_to_u64};
 
 fn get_file_buf_from_msg_num(
     msg: u64,
@@ -51,7 +49,7 @@ pub async fn send_file_index(
         #[cfg(feature = "sim_wan")]
         {
             let num = rand::random::<u8>();
-            
+
             if num <= 127 {
                 sock.send_to(&buf, reciever).await?;
             }
@@ -88,7 +86,7 @@ pub async fn send_file_index(
     let missed = &buf[1..];
     for i in 0..(missed.len() / 8) {
         // Convert bytes to offset
-        let missed_msg = u8s_to_u64(&missed[i..i+8])?;
+        let missed_msg = u8s_to_u64(&missed[i..i + 8])?;
         let mut buf = [0u8; 500];
         // Read from file
         let amt = get_file_buf_from_msg_num(missed_msg, &input_file, 500, &mut buf)?;
@@ -97,7 +95,7 @@ pub async fn send_file_index(
         #[cfg(feature = "sim_wan")]
         {
             let num = rand::random::<u8>();
-            
+
             if num <= 127 {
                 sock.send_to(buf, reciever).await?;
             }

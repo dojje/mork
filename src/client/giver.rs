@@ -30,7 +30,7 @@ async fn send_unil_recv(
     sock: &UdpSocket,
     msg: &[u8],
     addr: &SocketAddr,
-    buf: &mut [u8]
+    buf: &mut [u8],
 ) -> Result<usize, Box<dyn error::Error>> {
     let mut interval = time::interval(Duration::from_millis(1500));
     let amt = loop {
@@ -63,7 +63,7 @@ pub async fn sender(
     };
     let have_file = HaveFile::new(file_name.clone(), file_len);
 
-    let mut buf = [0u8;508];
+    let mut buf = [0u8; 508];
     let amt = send_unil_recv(&sock, &have_file.to_raw(), &server_addr, &mut buf).await?;
     let buf = &buf[0..amt];
     let you_have_file = YouHaveFile::from_raw(&buf)?;
@@ -73,7 +73,7 @@ pub async fn sender(
 
     // Wait for taker ip
     loop {
-        let mut buf =  [0;508];
+        let mut buf = [0; 508];
         let amt = send_unil_recv(&sock, &[255u8], &server_addr, &mut buf).await?;
         let buf = &buf[0..amt];
 

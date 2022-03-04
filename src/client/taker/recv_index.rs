@@ -9,10 +9,7 @@ use std::{
 use log::{debug, info};
 use tokio::{net::UdpSocket, time};
 
-use crate::{
-    read_position, recv,
-    write_position, u8s_to_u64,
-};
+use crate::{read_position, recv, u8s_to_u64, write_position};
 
 fn get_offset(msg_num: u64) -> u64 {
     msg_num * 500
@@ -98,7 +95,6 @@ fn from_binary(bin: [bool; 8]) -> u8 {
     num
 }
 
-
 pub async fn recv_file_index(
     file: &mut File,
     sock: Arc<UdpSocket>,
@@ -125,7 +121,7 @@ pub async fn recv_file_index(
 
     loop {
         let wait_time = time::sleep(Duration::from_millis(2000));
-        let mut buf = [0;508];
+        let mut buf = [0; 508];
         tokio::select! {
             _ = wait_time => {
                 info!("No message has been recieved for 2000ms, exiting!");
@@ -216,11 +212,9 @@ fn get_dropped(index_filename: &str, file_len: u64) -> Result<Vec<u64>, Box<dyn 
                 return Ok(dropped);
             }
             if !bit {
-
                 dropped.push(num);
-                if dropped.len() == 62{
+                if dropped.len() == 62 {
                     return Ok(dropped);
-
                 }
             }
 
@@ -228,6 +222,5 @@ fn get_dropped(index_filename: &str, file_len: u64) -> Result<Vec<u64>, Box<dyn 
         }
     }
 
-   Ok(dropped) 
+    Ok(dropped)
 }
-
