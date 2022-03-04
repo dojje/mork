@@ -76,48 +76,48 @@ pub async fn send_file_index(
     }
     info!("done sending file");
 
-    let mut buf = [0u8; 508];
-    let amt = send_unil_recv(&sock, &[5], &reciever, &mut buf, 1000).await?;
+    loop {
+        let mut buf = [0u8; 508];
+        let amt = send_unil_recv(&sock, &[5], &reciever, &mut buf, 1000).await?;
 
-    // This will be an array of u64s with missed things
-    // The first will be a message
-    let buf = &buf[0..amt];
-    if buf[0] != 6 {
-        // 6 is missed
-        debug!("file has successfully been sent");
-        return Ok(());
-    }
-
-    debug!("sending dropped");
-    let missed = &buf[1..];
-    debug!("missed messages: {}", missed.len() / 8);
-    for i in 0..(missed.len() / 8) {
-        let j = i * 8;
-        // Convert bytes to offset
-        let missed_msg = u8s_to_u64(&missed[j..j + 8])?;
-        debug!("dropped msg is {}", missed_msg);
-        let mut file_buf = [0u8; 500];
-        // Read from file
-        let amt = get_file_buf_from_msg_num(missed_msg, &input_file, 500, &mut file_buf)?;
-        let file_buf = &file_buf[0..amt];
-        let buf = get_buf(&missed_msg, file_buf);
-
-        #[cfg(feature = "sim_wan")]
-        {
-            let num = rand::random::<u8>();
-
-            if num <= 127 {
-                sock.send_to(&buf, reciever).await?;
-                debug!("sent msg {}", missed_msg);
-            } else {
-
-                debug!("has not sent msg {}", missed_msg);
-            }
+        // This will be an array of u64s with missed things
+        // The first will be a message
+        let buf = &buf[0..amt];
+        if buf[0] == 7 {
+            // 6 is missed
+            debug!("file has successfully been sent");
+            return Ok(());
         }
-        #[cfg(not(feature = "sim_wan"))]
-        sock.send_to(&buf, reciever).await?;
 
+        debug!("sending dropped");
+        let missed = &buf[1..];
+        debug!("missed messages: {}", missed.len() / 8);
+        for i in 0..(missed.len() / 8) {
+            let j = i * 8;
+            // Convert bytes to offset
+            let missed_msg = u8s_to_u64(&missed[j..j + 8])?;
+            debug!("dropped msg is {}", missed_msg);
+            let mut file_buf = [0u8; 500];
+            // Read from file
+            let amt = get_file_buf_from_msg_num(missed_msg, &input_file, 500, &mut file_buf)?;
+            let file_buf = &file_buf[0..amt];
+            let buf = get_buf(&missed_msg, file_buf);
+
+            //cfg(feature = "sim_wan")]
+            {
+                let num = rand::random::<u8>();
+
+                if num <= 127 {
+                    sock.send_to(&buf, reciever).await?;
+                    debug!("sent msg {}", missed_msg);
+                } else {
+
+                    debug!("has not sent msg {}", missed_msg);
+                }
+            }
+            #[cfg(not(feature = "sim_wan"))]
+            sock.send_to(&buf, reciever).await?;
+
+        }
     }
-
-    Ok(())
 }

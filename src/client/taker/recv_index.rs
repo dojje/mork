@@ -163,8 +163,30 @@ pub async fn recv_file_index(
             let dropped = get_dropped("filesender_recv_index", recv_size)?;
 
             if dropped.len() == 0 {
-                // TOOD: Send message that everything is recieved
+                // Send message that everything is recieved
+               
+                loop {
+                    let sleep = time::sleep(Duration::from_millis(1500));
 
+                    let mut buf = [0u8;508];
+                    tokio::select! {
+                        _ = sleep => {
+                            break;
+                        }
+
+                        amt = recv(&sock, &ip, &mut buf) => {
+                            let amt = amt?;
+                            let buf = &buf[0..amt];
+
+                            if buf[0] == 5 {
+                                debug!("got sending done msg from sender");
+                                sock.send_to(&[7], ip).await?;
+                            }
+
+                        }
+                    }
+                }
+                
                 break;
             }
             for drop in &dropped {
@@ -210,7 +232,6 @@ pub async fn recv_file_index(
             };
             
             let buf = &buf[0..amt];
-
 
             // Skip if the first iteration is a hole punch msg
             if buf.len() == 1 && buf[0] == 255 {
