@@ -1,6 +1,7 @@
 use std::{
     error,
     fs::{remove_file, File, OpenOptions},
+    io,
     net::SocketAddr,
     sync::Arc,
     time::Duration,
@@ -9,7 +10,7 @@ use std::{
 use log::{debug, info};
 use tokio::{net::UdpSocket, time};
 
-use crate::{read_position, recv, u8s_to_u64, write_position};
+use crate::{read_position, recv, send_unil_recv, u8s_to_u64, write_position};
 
 fn get_offset(msg_num: u64) -> u64 {
     msg_num * 500
@@ -95,6 +96,48 @@ fn from_binary(bin: [bool; 8]) -> u8 {
     num
 }
 
+fn write_indx(msg_num: u64, indx_file: &File) -> Result<(), Box<dyn error::Error>> {
+    // Get position in index file
+    let (offset, pos_in_offset) = get_pos_of_num(msg_num);
+    debug!("offset: {}", offset);
+    debug!("pos in offset: {}", pos_in_offset);
+
+    // Read offset position from index file
+    let mut offset_buf = [0u8; 1];
+    read_position(&indx_file, &mut offset_buf, offset)?;
+    debug!("current offset data: {}", offset_buf[0]);
+
+    // Change the offset
+    let mut offset_binary = to_binary(offset_buf[0]);
+    offset_binary[pos_in_offset as usize] = true;
+    let offset_buf = from_binary(offset_binary);
+    debug!("new offset data: {}", offset_buf);
+
+    // Write the offset
+    write_position(&indx_file, &[offset_buf], offset)?;
+
+    Ok(())
+}
+
+fn write_msg(buf: &[u8], out_file: &File, indx_file: &File) -> Result<(), Box<dyn error::Error>> {
+    // Get msg num
+    let msg_num = u8s_to_u64(&buf[0..8])?;
+
+    debug!("msg num: {}", msg_num);
+    let msg_offset = get_offset(msg_num);
+
+    // Write the data of the msg to out_file
+    let rest = &buf[8..];
+    write_position(out_file, &rest, msg_offset).unwrap();
+    debug!("wrote data");
+
+    write_indx(msg_num, indx_file)?;
+
+    debug!("wrote new offset");
+
+    Ok(())
+}
+
 pub async fn recv_file_index(
     file: &mut File,
     sock: Arc<UdpSocket>,
@@ -119,76 +162,108 @@ pub async fn recv_file_index(
     index_file.set_len(recv_size / 500 / 8 + 1)?;
     debug!("created index file");
 
-    loop {
-        let wait_time = time::sleep(Duration::from_millis(2000));
-        let mut buf = [0; 508];
-        tokio::select! {
-            _ = wait_time => {
-                info!("No message has been recieved for 2000ms, exiting!");
+    let mut first = true;
+    'pass: loop {
+       let mut first_data: Option<([u8;508], usize)> = None; 
+
+        if !first {
+            let dropped = get_dropped("filesender_recv_index", recv_size)?;
+
+            if dropped.len() == 0 {
+                // TOOD: Send message that everything is recieved
+
                 break;
             }
-
-            amt = recv(&sock, &ip, &mut buf) => {
-                let amt = amt?;
-                let buf = &buf[0..amt];
-
-                debug!("got msg with type: {}", buf[0]);
-
-                // Skip if the first iteration is a hole punch msg
-                if buf.len() == 1 && buf[0] == 255 {
-                    debug!("msg was just a holepunch");
-                    continue;
-                }
-                else if buf.len() == 1 && buf[0] == 5 {
-                    // Done sending
-                    break;
-                }
-
-                // Get msg num
-                let msg_num = u8s_to_u64(&buf[0..8])?;
-
-                debug!("msg num: {}", msg_num);
-                let msg_offset = get_offset(msg_num);
-
-                // Write the data of the msg to file
-                let rest = &buf[8..];
-                write_position(file, &rest, msg_offset).unwrap();
-                debug!("wrote data");
-
-                // Get position in index file
-                let (offset, pos_in_offset) = get_pos_of_num(msg_num);
-                debug!("offset: {}", offset);
-                debug!("pos in offset: {}", pos_in_offset);
-
-                // Read offset position from index file
-                let mut offset_buf = [0u8; 1];
-                read_position(&index_file, &mut offset_buf, offset)?;
-                debug!("current offset data: {}", offset_buf[0]);
-
-                // Change the offset
-                let mut offset_binary = to_binary(offset_buf[0]);
-                offset_binary[pos_in_offset as usize] = true;
-                let offset_buf = from_binary(offset_binary);
-                debug!("new offset data: {}", offset_buf);
-
-                // Write the offset
-                write_position(&index_file, &[offset_buf], offset)?;
-
-                debug!("wrote new offset");
+            for drop in &dropped {
+                debug!("dropped: {}", drop);
             }
-        }
-    }
+            let dropped_msg = gen_dropped_msg(dropped)?;
 
-    // TODO Creat function for getting dropped messages
-    let dropped = get_dropped("filesender_recv_index", recv_size)?;
-    for drop in dropped {
-        debug!("dropped: {}", drop);
-    }
+            let mut buf = [0u8; 508];
+            let amt = send_unil_recv(&sock, &dropped_msg, &ip, &mut buf, 500).await?;
+
+            first_data = Some((buf, amt));
+
+        }
+        first = false;
+
+        loop {
+            let wait_time = time::sleep(Duration::from_millis(2000));
+            let mut buf = [0; 508];
+
+
+            let amt = if let Some((new_buf, amt)) = first_data {
+                buf = new_buf;
+
+                first_data = None;
+
+                amt
+
+            } else {
+                // Recieve message from sender
+                let amt = tokio::select! {
+                    _ = wait_time => {
+                        info!("No message has been recieved for 2000ms, exiting!");
+                        break;
+                    }
+
+                    amt = recv(&sock, &ip, &mut buf) => {
+                        let amt = amt?;
+                        amt
+                    }
+                };
+
+                amt
+            };
+
+
+            
+            let buf = &buf[0..amt];
+
+            debug!("got msg with type: {}", buf[0]);
+
+            // Skip if the first iteration is a hole punch msg
+            if buf.len() == 1 && buf[0] == 255 {
+                debug!("msg was just a holepunch");
+                continue;
+            }
+            else if buf.len() == 1 && buf[0] == 5 {
+                // Done sending
+                continue 'pass;
+            }
+
+            write_msg(buf, file, &index_file)?;
+
+
+        }
+    };
 
     remove_file("filesender_recv_index")?;
     Ok(())
 }
 
+/// Converts an array of dropped messages into a 'dropped messages' message
+fn gen_dropped_msg(dropped: Vec<u64>) -> Result<Vec<u8>, Box<dyn error::Error>> {
+    if dropped.len() > 63 {
+        return Err(Box::new(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!(
+                "maximum amount of dropped messages is 63, got {}",
+                dropped.len()
+            )
+            .as_str(),
+        )));
+    }
+
+    let mut msg: Vec<u8> = vec![6];
+    for drop in dropped {
+        msg.append(&mut drop.to_be_bytes().as_slice().to_owned())
+    }
+
+    Ok(msg)
+}
+
+/// Gets the first 63 dropped messages
 fn get_dropped(index_filename: &str, file_len: u64) -> Result<Vec<u64>, Box<dyn error::Error>> {
     let file = File::open(index_filename)?;
 
@@ -196,6 +271,12 @@ fn get_dropped(index_filename: &str, file_len: u64) -> Result<Vec<u64>, Box<dyn 
 
     // let mut byte = num / 8;
     // let mut pos = num % 8;
+
+    let total = if file_len % 500 == 0 {
+        file_len / 500
+    } else {
+        file_len / 500 + 1
+    };
 
     for byte in 0..file.metadata()?.len() {
         // For every byte
@@ -206,14 +287,15 @@ fn get_dropped(index_filename: &str, file_len: u64) -> Result<Vec<u64>, Box<dyn 
         let mut bit_pos = 0;
         for bit in bin {
             let num = get_num_of_pos(byte, bit_pos);
-            if num > file_len / 500 + 1 {
+            // num starts it's counting from 0
+            if num == total {
                 // Return if it has checked every bit
-                info!("num {} is too much", num);
+                info!("msg {} is too much", num);
                 return Ok(dropped);
             }
             if !bit {
                 dropped.push(num);
-                if dropped.len() == 62 {
+                if dropped.len() == 63 {
                     return Ok(dropped);
                 }
             }

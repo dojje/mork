@@ -10,6 +10,7 @@ use std::{
     process,
     str::FromStr,
     sync::Arc,
+    time::Duration,
     vec,
 };
 
@@ -23,7 +24,7 @@ use serde::{Deserialize, Serialize};
 use shared::messages::{
     ip_for_code::IpForCode, taker_ip::TakerIp, you_have_file::YouHaveFile, Message, ServerMsg,
 };
-use tokio::net::UdpSocket;
+use tokio::{net::UdpSocket, time};
 
 #[cfg(target_os = "linux")]
 use std::os::unix::fs::FileExt;
@@ -259,4 +260,32 @@ async fn recv(
             return Ok(amt);
         }
     }
+}
+
+async fn send_unil_recv(
+    sock: &UdpSocket,
+    msg: &[u8],
+    addr: &SocketAddr,
+    buf: &mut [u8],
+    interval: u64,
+) -> Result<usize, Box<dyn error::Error>> {
+    let mut send_interval = time::interval(Duration::from_millis(interval));
+    let amt = loop {
+        tokio::select! {
+            _ = send_interval.tick() => {
+                sock.send_to(msg, addr).await?;
+
+            }
+
+            result = sock.recv_from(buf) => {
+                let (amt, src) = result?;
+                if &src != addr {
+                    continue;
+                }
+                break amt;
+            }
+        }
+    };
+
+    Ok(amt)
 }

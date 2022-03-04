@@ -3,17 +3,17 @@ use std::{
     fs::File,
     net::SocketAddr,
     sync::Arc,
-    time::Duration,
 };
 
 use shared::messages::{
     have_file::HaveFile, taker_ip::TakerIp, you_have_file::YouHaveFile, Message,
 };
-use tokio::{net::UdpSocket, time};
+use tokio::net::UdpSocket;
 
 use crate::{
     ensure_global_ip,
-    giver::{send_burst::send_file_burst, send_index::send_file_index}, SendMethod,
+    giver::{send_burst::send_file_burst, send_index::send_file_index},
+    send_unil_recv, SendMethod,
 };
 
 mod send_burst;
@@ -23,34 +23,6 @@ fn get_file_len(file_name: &String) -> Result<u64, Box<dyn error::Error>> {
     let file = File::open(file_name)?;
 
     Ok(file.metadata().unwrap().len())
-}
-
-async fn send_unil_recv(
-    sock: &UdpSocket,
-    msg: &[u8],
-    addr: &SocketAddr,
-    buf: &mut [u8],
-    interval: u64,
-) -> Result<usize, Box<dyn error::Error>> {
-    let mut send_interval = time::interval(Duration::from_millis(interval));
-    let amt = loop {
-        tokio::select! {
-            _ = send_interval.tick() => {
-                sock.send_to(msg, addr).await?;
-
-            }
-
-            result = sock.recv_from(buf) => {
-                let (amt, src) = result?;
-                if &src != addr {
-                    continue;
-                }
-                break amt;
-            }
-        }
-    };
-
-    Ok(amt)
 }
 
 pub async fn sender(
