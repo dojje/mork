@@ -99,19 +99,15 @@ fn from_binary(bin: [bool; 8]) -> u8 {
 fn write_indx(msg_num: u64, indx_file: &File) -> Result<(), Box<dyn error::Error>> {
     // Get position in index file
     let (offset, pos_in_offset) = get_pos_of_num(msg_num);
-    debug!("offset: {}", offset);
-    debug!("pos in offset: {}", pos_in_offset);
 
     // Read offset position from index file
     let mut offset_buf = [0u8; 1];
     read_position(&indx_file, &mut offset_buf, offset)?;
-    debug!("current offset data: {}", offset_buf[0]);
 
     // Change the offset
     let mut offset_binary = to_binary(offset_buf[0]);
     offset_binary[pos_in_offset as usize] = true;
     let offset_buf = from_binary(offset_binary);
-    debug!("new offset data: {}", offset_buf);
 
     // Write the offset
     write_position(&indx_file, &[offset_buf], offset)?;
@@ -129,11 +125,8 @@ fn write_msg(buf: &[u8], out_file: &File, indx_file: &File) -> Result<(), Box<dy
     // Write the data of the msg to out_file
     let rest = &buf[8..];
     write_position(out_file, &rest, msg_offset).unwrap();
-    debug!("wrote data");
 
     write_indx(msg_num, indx_file)?;
-
-    debug!("wrote new offset");
 
     Ok(())
 }
@@ -215,25 +208,22 @@ pub async fn recv_file_index(
 
                 amt
             };
-
-
             
             let buf = &buf[0..amt];
 
-            debug!("got msg with type: {}", buf[0]);
 
             // Skip if the first iteration is a hole punch msg
             if buf.len() == 1 && buf[0] == 255 {
-                debug!("msg was just a holepunch");
+                debug!("got holepunch msg");
                 continue;
             }
             else if buf.len() == 1 && buf[0] == 5 {
                 // Done sending
+                debug!("sender is done sending");
                 continue 'pass;
             }
 
             write_msg(buf, file, &index_file)?;
-
 
         }
     };
