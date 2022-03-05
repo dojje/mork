@@ -36,6 +36,9 @@ use crate::{giver::sender, taker::reciever};
 mod giver;
 mod taker;
 
+#[cfg(feature = "sim_wan")]
+use shared::send_maybe;
+
 const CONFIG_FILENAME: &'static str = "filesender_data.toml";
 // TODO longer codes
 // TODO fix clap order, make it so that you can use any order
@@ -131,6 +134,8 @@ async fn punch_hole(sock: &UdpSocket, addr: SocketAddr) -> Result<(), Box<dyn Er
 
     Ok(())
 }
+
+
 
 fn get_config() -> Config {
     // Check if settings file exists
@@ -273,6 +278,9 @@ async fn send_unil_recv(
     let amt = loop {
         tokio::select! {
             _ = send_interval.tick() => {
+                #[cfg(feature = "sim_wan")]
+                send_maybe(&sock, msg, addr).await?;
+                #[cfg(not(feature = "sim_wan"))]
                 sock.send_to(msg, addr).await?;
 
             }

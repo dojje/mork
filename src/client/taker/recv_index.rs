@@ -12,6 +12,9 @@ use tokio::{net::UdpSocket, time};
 
 use crate::{read_position, recv, send_unil_recv, u8s_to_u64, write_position};
 
+#[cfg(feature = "sim_wan")]
+use shared::send_maybe;
+
 fn get_offset(msg_num: u64) -> u64 {
     msg_num * 500
 }
@@ -119,7 +122,6 @@ fn write_msg(buf: &[u8], out_file: &File, indx_file: &File) -> Result<(), Box<dy
     // Get msg num
     let msg_num = u8s_to_u64(&buf[0..8])?;
 
-    debug!("msg num: {}", msg_num);
     let msg_offset = get_offset(msg_num);
 
     // Write the data of the msg to out_file
@@ -157,13 +159,19 @@ pub async fn recv_file_index(
 
     let mut first = true;
     'pass: loop {
+        debug!("\n");
        let mut first_data: Option<([u8;508], usize)> = None; 
 
         if !first {
             let dropped = get_dropped("filesender_recv_index", recv_size)?;
+            debug!("dropped {} messages", dropped.len());
+            for drop in &dropped {
+                debug!("dropped: {}", drop);
+            }
 
             if dropped.len() == 0 {
                 // Send message that everything is recieved
+                
                
                 loop {
                     let sleep = time::sleep(Duration::from_millis(1500));
@@ -180,7 +188,11 @@ pub async fn recv_file_index(
 
                             if buf[0] == 5 {
                                 debug!("got sending done msg from sender");
+                                #[cfg(feature = "sim_wan")]
+                                send_maybe(&sock, &[7], &ip).await?;
+                                #[cfg(not(feature = "sim_wan"))]
                                 sock.send_to(&[7], ip).await?;
+                                
                             }
 
                         }
@@ -189,16 +201,20 @@ pub async fn recv_file_index(
                 
                 break;
             }
-            for drop in &dropped {
-                debug!("dropped: {}", drop);
-            }
             let dropped_msg = gen_dropped_msg(dropped)?;
 
             let mut buf = [0u8; 508];
-            let amt = send_unil_recv(&sock, &dropped_msg, &ip, &mut buf, 500).await?;
+            loop {
+                let amt = send_unil_recv(&sock, &dropped_msg, &ip, &mut buf, 100).await?;
+                let msg_buf = &buf[0..amt];
+                // If it's the same message
+                if msg_buf.len() != 1 && msg_buf[0] != 5 {
+                    first_data = Some((buf, amt));
+                    break;
 
-            first_data = Some((buf, amt));
+                }
 
+            }
         }
         first = false;
 
@@ -301,7 +317,6 @@ fn get_dropped(index_filename: &str, file_len: u64) -> Result<Vec<u64>, Box<dyn 
             // num starts it's counting from 0
             if num == total {
                 // Return if it has checked every bit
-                info!("msg {} is too much", num);
                 return Ok(dropped);
             }
             if !bit {

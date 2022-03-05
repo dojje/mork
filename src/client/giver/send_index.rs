@@ -1,7 +1,7 @@
 use std::{error, fs::File, net::SocketAddr, sync::Arc, thread, time::Duration};
 
 use log::{debug, info};
-use tokio::net::UdpSocket;
+use tokio::{net::UdpSocket, time};
 
 use crate::{
     giver::{get_buf, send_unil_recv},
@@ -18,6 +18,12 @@ fn get_file_buf_from_msg_num(
 
     Ok(amt)
 }
+
+#[cfg(feature = "sim_wan")]
+use shared::send_maybe;
+
+// Intervals
+const SEND_FILE_INTERVAL: u64 = 10;
 
 pub async fn send_file_index(
     sock: Arc<UdpSocket>,
@@ -44,6 +50,7 @@ pub async fn send_file_index(
         file_len / 500 + 1
     };
 
+    let mut send_interval = time::interval(Duration::from_millis(SEND_FILE_INTERVAL));
     info!("will send {} bytes in {} packets", file_len, total);
     loop {
         let mut file_buf = [0u8; 500];
@@ -51,18 +58,10 @@ pub async fn send_file_index(
 
         let buf = get_buf(&msg_num, &file_buf[0..amt]);
 
+        send_interval.tick().await;
+
         #[cfg(feature = "sim_wan")]
-        {
-            let num = rand::random::<u8>();
-
-            if num <= 127 {
-                sock.send_to(&buf, reciever).await?;
-                debug!("msg {} was sent", msg_num);
-            } else {
-                debug!("msg {} was not sent", msg_num);
-
-            }
-        }
+        send_maybe(&sock, &buf, &reciever).await?;
         #[cfg(not(feature = "sim_wan"))]
         sock.send_to(&buf, reciever).await?;
 
@@ -72,13 +71,12 @@ pub async fn send_file_index(
         }
 
         msg_num += 1;
-        tokio::time::sleep(Duration::from_millis(50)).await;
     }
-    info!("done sending file");
 
     loop {
+        debug!("sending done msg");
         let mut buf = [0u8; 508];
-        let amt = send_unil_recv(&sock, &[5], &reciever, &mut buf, 1000).await?;
+        let amt = send_unil_recv(&sock, &[5], &reciever, &mut buf, 10).await?;
 
         // This will be an array of u64s with missed things
         // The first will be a message
@@ -103,21 +101,12 @@ pub async fn send_file_index(
             let file_buf = &file_buf[0..amt];
             let buf = get_buf(&missed_msg, file_buf);
 
-            //cfg(feature = "sim_wan")]
-            {
-                let num = rand::random::<u8>();
-
-                if num <= 127 {
-                    sock.send_to(&buf, reciever).await?;
-                    debug!("sent msg {}", missed_msg);
-                } else {
-
-                    debug!("has not sent msg {}", missed_msg);
-                }
-            }
+            send_interval.tick().await;
+            #[cfg(feature = "sim_wan")]
+            send_maybe(&sock, &buf, &reciever).await?;
             #[cfg(not(feature = "sim_wan"))]
             sock.send_to(&buf, reciever).await?;
-
         }
+        debug!("done sending dropped messages\n");
     }
 }
