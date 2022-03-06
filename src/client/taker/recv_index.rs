@@ -139,14 +139,12 @@ pub async fn recv_file_index(
     ip: SocketAddr,
     recv_size: u64,
 ) -> Result<(), Box<dyn error::Error>> {
-    // TODO Create file for keeping track of messages
-    // When the giver think it's done it should say that to the taker
-    // the taker should check that it has recieved all packets
-    // If not, the taker should send what messages are unsent
+    // When the giver think it's done it should say that to the reciever 
+    // the reciever should check that it has recieved all packets
+    // If not, the reciever should send what messages are unsent
     // If there are too many for one message the other ones should be sent in the iteration
 
     // Create index file
-    // TODO Check so that file doesn't already exist
     let index_file = OpenOptions::new()
         .read(true)
         .write(true)
