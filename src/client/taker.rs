@@ -28,7 +28,7 @@ pub async fn reciever(
 ) -> Result<(), Box<dyn Error>> {
     // Send message to server
     let i_have_code = IHaveCode::new(code);
-    send_msg(&sock, &i_have_code, server_addr).await?;
+    send_msg(&sock, &i_have_code, &server_addr).await?;
 
     let mut buf = [0u8; 508];
     let amt = recv(&sock, &server_addr, &mut buf).await?;

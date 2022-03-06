@@ -145,6 +145,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "dovepipe"
+version = "0.1.0"
+dependencies = [
+ "tokio",
+]
+
+[[package]]
 name = "env_logger"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -165,6 +172,7 @@ dependencies = [
  "chrono",
  "clap",
  "colored",
+ "dovepipe",
  "env_logger",
  "log",
  "message-derive",
