@@ -160,7 +160,7 @@ pub async fn recv_file_index(
     let mut first = true;
     'pass: loop {
         debug!("\n");
-       let mut first_data: Option<([u8;508], usize)> = None; 
+        let mut first_data: Option<([u8;508], usize)> = None; 
 
         if !first {
             let dropped = get_dropped("filesender_recv_index", recv_size)?;
@@ -172,7 +172,6 @@ pub async fn recv_file_index(
             if dropped.len() == 0 {
                 // Send message that everything is recieved
                 
-               
                 loop {
                     let sleep = time::sleep(Duration::from_millis(1500));
 

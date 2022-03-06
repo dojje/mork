@@ -61,7 +61,7 @@ fn write_position(file: &File, buf: &[u8], offset: u64) -> Result<usize, Box<dyn
     let amt = file.write_at(&buf, offset)?;
 
     #[cfg(target_os = "windows")]
-    let amt = file.seek_write(&file_buf, offset)?;
+    let amt = file.seek_write(&buf, offset)?;
 
     Ok(amt)
 }
