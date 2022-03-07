@@ -75,14 +75,6 @@ pub async fn sender(
     }
 }
 
-fn get_buf(msg_num: &u64, file_buf: &[u8]) -> Vec<u8> {
-    let msg_num_u8 = msg_num.to_be_bytes();
-
-    let full = [&msg_num_u8, file_buf].concat();
-
-    full
-}
-
 // ** THE PROGRESS TRACKER **
 //
 // It works by having an array of bits of all messages

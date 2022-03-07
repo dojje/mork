@@ -3,7 +3,7 @@ use std::{
     error::Error,
     fmt,
     fs::{self, File},
-    io::{self, Write},
+    io::Write,
     net::SocketAddr,
     path::Path,
     process,
@@ -151,21 +151,6 @@ impl fmt::Display for NotRightAmountError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "invalid first item to double")
     }
-}
-
-fn u8s_to_u64(nums: &[u8]) -> io::Result<u64> {
-    if nums.len() != 8 {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "nums must be 8 bytes long",
-        ));
-    }
-    let msg_u8: [u8; 8] = [
-        nums[0], nums[1], nums[2], nums[3], nums[4], nums[5], nums[6], nums[7],
-    ];
-
-    let big_number = u64::from_be_bytes(msg_u8);
-    Ok(big_number)
 }
 
 #[tokio::main]
