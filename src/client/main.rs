@@ -1,4 +1,3 @@
-#![feature(ip)]
 use std::{
     error,
     error::Error,
@@ -26,11 +25,6 @@ use shared::messages::{
 };
 use tokio::{net::UdpSocket, time};
 
-#[cfg(target_os = "linux")]
-use std::os::unix::fs::FileExt;
-#[cfg(target_os = "windows")]
-use std::os::windows::prelude::FileExt;
-
 use crate::{giver::sender, taker::reciever};
 
 mod giver;
@@ -46,26 +40,6 @@ const CONFIG_FILENAME: &'static str = "filesender_data.toml";
 // TODO: Function for getting new server list
 // TODO: Function for updating program
 // TODO: Use library instead
-
-fn read_position(file: &File, buf: &mut [u8], offset: u64) -> Result<usize, Box<dyn error::Error>> {
-    #[cfg(target_os = "linux")]
-    let amt = file.read_at(buf, offset)?;
-
-    #[cfg(target_os = "windows")]
-    let amt = file.seek_read(buf, offset)?;
-
-    Ok(amt)
-}
-
-fn write_position(file: &File, buf: &[u8], offset: u64) -> Result<usize, Box<dyn error::Error>> {
-    #[cfg(target_os = "linux")]
-    let amt = file.write_at(&buf, offset)?;
-
-    #[cfg(target_os = "windows")]
-    let amt = file.seek_write(&buf, offset)?;
-
-    Ok(amt)
-}
 
 #[derive(Serialize, Deserialize)]
 struct Config {
@@ -159,7 +133,7 @@ fn get_config() -> Config {
 }
 
 fn ensure_global_ip(addr: SocketAddr, server_ip: &SocketAddr) -> SocketAddr {
-    if addr.ip().is_global() {
+    if ip_rfc::global(&addr.ip()) {
         return addr;
     }
 

@@ -10,14 +10,15 @@ use std::os::windows::prelude::FileExt;
 use std::{error::Error, fs::File, net::SocketAddr, sync::Arc};
 use tokio::net::UdpSocket;
 
+use dovepipe::{recv_file, reciever::ProgressTracking};
+
 use crate::{
     ensure_global_ip, punch_hole, recv,
-    taker::{recv_burst::recv_file_burst, recv_index::recv_file_index},
     SendMethod,
 };
 
-mod recv_burst;
-mod recv_index;
+// mod recv_burst;
+// mod recv_index;
 
 pub async fn reciever(
     code: String,
@@ -57,11 +58,11 @@ pub async fn reciever(
 
     match send_method {
         SendMethod::Burst => {
-            recv_file_burst(&mut file, sock, ip).await?;
+            // recv_file_burst(&mut file, sock, ip).await?;
         }
         SendMethod::Confirm => todo!(),
         SendMethod::Index => {
-            recv_file_index(&mut file, sock, ip, ip_for_code.file_len).await?;
+            recv_file(&mut file, sock, ip, ip_for_code.file_len, ProgressTracking::Memory).await?;
         }
     }
 

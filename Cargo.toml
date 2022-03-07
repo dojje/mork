@@ -19,6 +19,7 @@ message-derive = {path = "message-derive"}
 clap = { version = "3.1.0", features = ["derive"] }
 rand = "0.8.5"
 dovepipe = {path = "../dovepipe"}
+ip_rfc = "0.1.0"
 
 [features]
 sim_wan = []

@@ -5,6 +5,7 @@ use std::{
     sync::Arc,
 };
 
+use dovepipe::send_file;
 use shared::messages::{
     have_file::HaveFile, taker_ip::TakerIp, you_have_file::YouHaveFile, Message,
 };
@@ -12,12 +13,11 @@ use tokio::net::UdpSocket;
 
 use crate::{
     ensure_global_ip,
-    giver::{send_burst::send_file_burst, send_index::send_file_index},
     send_unil_recv, SendMethod,
 };
 
-mod send_burst;
-mod send_index;
+// mod send_burst;
+// mod send_index;
 
 fn get_file_len(file_name: &String) -> Result<u64, Box<dyn error::Error>> {
     let file = File::open(file_name)?;
@@ -48,7 +48,7 @@ pub async fn sender(
     // Wait for taker ip
     loop {
         let mut buf = [0; 508];
-        let amt = send_unil_recv(&sock, &[255u8], &server_addr, &mut buf, 1500).await?;
+        let amt = send_unil_recv(&sock, &[255u8], &server_addr, &mut buf, 1000).await?;
         let buf = &buf[0..amt];
 
         let taker_ip = TakerIp::from_raw(buf)?;
@@ -60,13 +60,13 @@ pub async fn sender(
         tokio::spawn(async move {
             match &send_method {
                 SendMethod::Burst => {
-                    send_file_burst(sock_send, file_name, correct_ip)
-                        .await
-                        .expect("could not send file");
+                    // send_file_burst(sock_send, file_name, correct_ip)
+                    //    .await
+                    //    .expect("could not send file");
                 }
                 SendMethod::Confirm => todo!(),
                 SendMethod::Index => {
-                    send_file_index(sock_send, file_name, correct_ip)
+                    send_file(sock_send, file_name, correct_ip)
                         .await
                         .expect("could not send file");
                 }
