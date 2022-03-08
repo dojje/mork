@@ -39,7 +39,7 @@ const CONFIG_FILENAME: &'static str = "filesender_data.toml";
 // TODO: Check for enough disk space
 // TODO: Function for getting new server list
 // TODO: Function for updating program
-// TODO: Use library instead
+// TODO: Do not store file size in server
 
 #[derive(Serialize, Deserialize)]
 struct Config {
