@@ -32,8 +32,4 @@ pub trait Message {
 // ip_for_code: 2
 // taker_ip: 3
 // you_have_file: 4
-// done_sending: 5
-// missed_messages: 6
-// all_messages are sent: 7
-
 // holepunch: 255
