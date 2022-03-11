@@ -51,7 +51,7 @@ pub async fn reciever(
     };
     let mut file = File::create(filename).unwrap();
 
-    info!("ready to recieve");
+    info!("Recieving file...");
 
     match send_method {
         SendMethod::Burst => {

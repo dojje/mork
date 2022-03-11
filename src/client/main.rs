@@ -35,7 +35,6 @@ use shared::send_maybe;
 
 const CONFIG_FILENAME: &'static str = "filesender_data.toml";
 // TODO: longer codes
-// TODO: fix clap order, make it so that you can use any order
 // TODO: Check for enough disk space
 // TODO: Function for getting new server list
 // TODO: Function for updating program
@@ -73,23 +72,13 @@ enum Action {
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
-    /// Subcommand to execute
-    #[clap(subcommand)]
-    action: Action,
+    input: Option<String>,
 
-    /// Code for file to recieve
-    /// Must be set if it should recieve files
     #[clap(short, long)]
     code: Option<String>,
 
     #[clap(short, long)]
-    input: Option<String>,
-
-    #[clap(short, long)]
     output: Option<String>,
-
-    #[clap(short, long, default_value = "seq")]
-    recv_mode: String,
 }
 
 fn _get_msg_from_raw(raw: &[u8]) -> Result<ServerMsg, &'static str> {
@@ -186,15 +175,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     info!("binding to addr");
     let sock = Arc::new(UdpSocket::bind(addr).await?);
 
-    match (args.action, args.input) {
-        (Action::Give, Some(input)) => {
+    match args.input {
+        Some(input) => {
             sender(input, sock, server_addr, SendMethod::Index).await?;
         }
-        (Action::Give, None) => {
-            eprintln!("input file not set");
-            process::exit(0);
-        }
-        (Action::Take, _) => {
+        None => {
             let code = match args.code {
                 Some(code) => code,
                 None => {
@@ -205,6 +190,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
             let send_method = SendMethod::Index;
             reciever(code, sock, server_addr, args.output, send_method).await?;
+            info!("successfully recieved file");
         }
     }
 
