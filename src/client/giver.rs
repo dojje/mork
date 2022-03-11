@@ -11,21 +11,18 @@ use shared::messages::{
 };
 use tokio::net::UdpSocket;
 
-use crate::{
-    ensure_global_ip,
-    send_unil_recv, SendMethod,
-};
+use crate::{ensure_global_ip, send_unil_recv, SendMethod};
 
 // mod send_burst;
 // mod send_index;
 
-fn get_file_len(file_name: &String) -> Result<u64, Box<dyn error::Error>> {
+fn get_file_len(file_name: &str) -> Result<u64, Box<dyn error::Error>> {
     let file = File::open(file_name)?;
 
     Ok(file.metadata().unwrap().len())
 }
 
-pub async fn sender(
+pub async fn sender<'a>(
     file_name: String,
     sock: Arc<UdpSocket>,
     server_addr: SocketAddr,
@@ -35,7 +32,7 @@ pub async fn sender(
         Ok(f) => f,
         Err(_) => panic!("file {} doesn't exist", file_name),
     };
-    let have_file = HaveFile::new(file_name.clone(), file_len);
+    let have_file = HaveFile::new(file_name.to_owned(), file_len);
 
     let mut buf = [0u8; 508];
     let amt = send_unil_recv(&sock, &have_file.to_raw(), &server_addr, &mut buf, 500).await?;
@@ -66,7 +63,7 @@ pub async fn sender(
                 }
                 SendMethod::Confirm => todo!(),
                 SendMethod::Index => {
-                    send_file(sock_send, file_name, correct_ip)
+                    send_file(&sock_send, file_name.as_str(), correct_ip)
                         .await
                         .expect("could not send file");
                 }

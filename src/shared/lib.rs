@@ -8,7 +8,6 @@ pub mod messages;
 #[cfg(feature = "sim_wan")]
 use std::error;
 
-
 #[derive(Clone)]
 pub struct Transfer {
     pub file_haver: SocketAddr,
@@ -27,17 +26,19 @@ impl Transfer {
 }
 
 #[cfg(feature = "sim_wan")]
-pub async fn send_maybe(sock: &UdpSocket, buf: &[u8], reciever: &SocketAddr) -> Result<(), Box<dyn error::Error>> {
-
+pub async fn send_maybe(
+    sock: &UdpSocket,
+    buf: &[u8],
+    reciever: &SocketAddr,
+) -> Result<(), Box<dyn error::Error>> {
     {
         let num = rand::random::<u8>();
 
         if num <= 127 {
             sock.send_to(&buf, reciever).await?;
         } else {
-
         }
-    } 
+    }
 
     Ok(())
 }

@@ -110,8 +110,6 @@ async fn punch_hole(sock: &UdpSocket, addr: SocketAddr) -> Result<(), Box<dyn Er
     Ok(())
 }
 
-
-
 fn get_config() -> Config {
     // Check if settings file exists
     if !Path::new(CONFIG_FILENAME).exists() {
