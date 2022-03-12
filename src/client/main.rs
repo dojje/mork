@@ -21,17 +21,14 @@ use log::{info, LevelFilter};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use shared::messages::{
-    ip_for_code::IpForCode, taker_ip::TakerIp, you_have_file::YouHaveFile, Message, ServerMsg,
+    ip_for_code::IpForCode, recieving_ip::RecievingIp, you_have_file::YouHaveFile, Message, ServerMsg,
 };
 use tokio::{net::UdpSocket, time};
 
-use crate::{giver::sender, taker::reciever};
+use crate::{sending::sender, recieving::reciever};
 
-mod giver;
-mod taker;
-
-#[cfg(feature = "sim_wan")]
-use shared::send_maybe;
+mod sending;
+mod recieving;
 
 const CONFIG_FILENAME: &'static str = "filesender_data.toml";
 // TODO: longer codes
@@ -86,8 +83,8 @@ fn _get_msg_from_raw(raw: &[u8]) -> Result<ServerMsg, &'static str> {
         Ok(ServerMsg::YouHaveFile(have_file))
     } else if let Ok(i_have_code) = IpForCode::from_raw(raw) {
         Ok(ServerMsg::IpForCode(i_have_code))
-    } else if let Ok(taker_ip) = TakerIp::from_raw(raw) {
-        Ok(ServerMsg::TakerIp(taker_ip))
+    } else if let Ok(receving_ip) = RecievingIp::from_raw(raw) {
+        Ok(ServerMsg::Recieving(receving_ip))
     } else {
         Err("could not make into any message")
     }
@@ -158,8 +155,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Read arguemts
     let args = Args::parse();
-    #[cfg(feature = "sim_wan")]
-    info!("simulating wide area network");
 
     // Read from config
     let config = get_config();
@@ -222,9 +217,6 @@ async fn send_unil_recv(
     let amt = loop {
         tokio::select! {
             _ = send_interval.tick() => {
-                #[cfg(feature = "sim_wan")]
-                send_maybe(&sock, msg, addr).await?;
-                #[cfg(not(feature = "sim_wan"))]
                 sock.send_to(msg, addr).await?;
 
             }

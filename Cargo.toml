@@ -22,7 +22,7 @@ dovepipe = {path = "../dovepipe"}
 ip_rfc = "0.1.0"
 
 [features]
-sim_wan = []
+# sim_wan = []
 
 [[bin]]
 name = "client"

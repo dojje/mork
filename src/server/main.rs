@@ -5,7 +5,7 @@ use log::{info, LevelFilter};
 use rand::Rng;
 use shared::{
     messages::{
-        have_file::HaveFile, i_have_code::IHaveCode, ip_for_code::IpForCode, taker_ip::TakerIp,
+        have_file::HaveFile, i_have_code::IHaveCode, ip_for_code::IpForCode, recieving_ip::RecievingIp,
         you_have_file::YouHaveFile, ClientMsg, Message,
     },
     Transfer,
@@ -109,9 +109,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     src, have_code.code
                 );
 
-                // Send taker ip to giver
-                let taker_ip = TakerIp::new(src);
-                sock.send_to(&taker_ip.to_raw(), transfer.file_haver)
+                // Send recieving ip to sending client
+                let recieving_ip = RecievingIp::new(src);
+                sock.send_to(&recieving_ip.to_raw(), transfer.file_haver)
                     .await?;
 
                 let resp = IpForCode::from_transfer(transfer.clone());

@@ -4,7 +4,7 @@ use log::{debug, info};
 use tokio::{net::UdpSocket, time};
 
 use crate::{
-    giver::{get_buf, send_unil_recv},
+    sending::{get_buf, send_unil_recv},
     punch_hole, read_position, u8s_to_u64,
 };
 
@@ -19,7 +19,6 @@ fn get_file_buf_from_msg_num(
     Ok(amt)
 }
 
-#[cfg(feature = "sim_wan")]
 use shared::send_maybe;
 
 // Intervals
@@ -60,9 +59,6 @@ pub async fn send_file_index(
 
         send_interval.tick().await;
 
-        #[cfg(feature = "sim_wan")]
-        send_maybe(&sock, &buf, &reciever).await?;
-        #[cfg(not(feature = "sim_wan"))]
         sock.send_to(&buf, reciever).await?;
 
         offset += 500;
@@ -102,9 +98,6 @@ pub async fn send_file_index(
             let buf = get_buf(&missed_msg, file_buf);
 
             send_interval.tick().await;
-            #[cfg(feature = "sim_wan")]
-            send_maybe(&sock, &buf, &reciever).await?;
-            #[cfg(not(feature = "sim_wan"))]
             sock.send_to(&buf, reciever).await?;
         }
         debug!("done sending dropped messages\n");

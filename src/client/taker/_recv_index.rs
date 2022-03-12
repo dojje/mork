@@ -12,8 +12,6 @@ use tokio::{net::UdpSocket, time};
 
 use crate::{read_position, recv, send_unil_recv, u8s_to_u64, write_position};
 
-#[cfg(feature = "sim_wan")]
-use shared::send_maybe;
 
 fn get_offset(msg_num: u64) -> u64 {
     msg_num * 500
@@ -139,7 +137,7 @@ pub async fn recv_file_index(
     ip: SocketAddr,
     recv_size: u64,
 ) -> Result<(), Box<dyn error::Error>> {
-    // When the giver think it's done it should say that to the reciever 
+    // When the sending client think it's done it should say that to the reciever 
     // the reciever should check that it has recieved all packets
     // If not, the reciever should send what messages are unsent
     // If there are too many for one message the other ones should be sent in the iteration
@@ -185,9 +183,6 @@ pub async fn recv_file_index(
 
                             if buf[0] == 5 {
                                 debug!("got sending done msg from sender");
-                                #[cfg(feature = "sim_wan")]
-                                send_maybe(&sock, &[7], &ip).await?;
-                                #[cfg(not(feature = "sim_wan"))]
                                 sock.send_to(&[7], ip).await?;
                                 
                             }

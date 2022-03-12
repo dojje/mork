@@ -7,11 +7,11 @@ use message_derive::Message;
 
 #[derive(Serialize, Deserialize, Message)]
 #[message(msg_code = 3)]
-pub struct TakerIp {
+pub struct RecievingIp {
     pub ip: SocketAddr,
 }
 
-impl TakerIp {
+impl RecievingIp {
     pub fn new(ip: SocketAddr) -> Self {
         Self { ip }
     }

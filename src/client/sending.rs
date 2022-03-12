@@ -7,7 +7,7 @@ use std::{
 
 use dovepipe::send_file;
 use shared::messages::{
-    have_file::HaveFile, taker_ip::TakerIp, you_have_file::YouHaveFile, Message,
+    have_file::HaveFile, recieving_ip::RecievingIp, you_have_file::YouHaveFile, Message,
 };
 use tokio::net::UdpSocket;
 
@@ -42,15 +42,15 @@ pub async fn sender<'a>(
     let code = you_have_file.code;
     println!("Code for recv: {}", &code);
 
-    // Wait for taker ip
+    // Wait for recieving ip from server
     loop {
         let mut buf = [0; 508];
         let amt = send_unil_recv(&sock, &[255u8], &server_addr, &mut buf, 1000).await?;
         let buf = &buf[0..amt];
 
-        let taker_ip = TakerIp::from_raw(buf)?;
+        let recieving_ip = RecievingIp::from_raw(buf)?;
 
-        let correct_ip = ensure_global_ip(taker_ip.ip, &server_addr);
+        let correct_ip = ensure_global_ip(recieving_ip.ip, &server_addr);
         let file_name = file_name.clone();
         let sock_send = sock.clone();
         let send_method = send_method.clone();
