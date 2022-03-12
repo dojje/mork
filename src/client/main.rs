@@ -31,12 +31,16 @@ use crate::{recieving::reciever, sending::sender};
 mod recieving;
 mod sending;
 
-fn get_config_filename() -> &'static str {
+fn get_config_filename() -> String {
     #[cfg(target_os = "linux")]
     let config_home = var("XDG_CONFIG_HOME")
-        .or_else(|_| var("HOME").map(|home|format!("{}/.mork_config", home)));
+        .or_else(|_| var("HOME").map(|home| format!("{}/.mork_config", home)))
+        .to_string();
     #[cfg(target_os = "windows")]
-    let config_home = "C:\\Program Files\\Common Files\\mork_config.toml";
+    let config_home = format!(
+        "C:\\Users\\{}\\AppData\\Roaming\\mork\\mork_config.toml",
+        whoami::username()
+    );
 
     config_home
 }
@@ -109,18 +113,18 @@ async fn punch_hole(sock: &UdpSocket, addr: SocketAddr) -> Result<(), Box<dyn Er
 fn get_config() -> Config {
     let config_filename = get_config_filename();
     // Check if settings file exists
-    if !Path::new(config_filename).exists() {
+    if !Path::new(&config_filename).exists() {
         let config = Config::new();
 
         let confing_str = toml::to_string(&config).unwrap();
-        let mut file = File::create(config_filename).unwrap();
+        let mut file = File::create(&config_filename).unwrap();
 
         // Write a &str in the file (ignoring the result).
         write!(&mut file, "{}", confing_str).unwrap();
     }
 
-    let contents =
-        fs::read_to_string(config_filename).expect("Something went wrong reading the appdata file");
+    let contents = fs::read_to_string(&config_filename)
+        .expect("Something went wrong reading the appdata file");
 
     let config: Config = toml::from_str(contents.as_str()).unwrap();
 

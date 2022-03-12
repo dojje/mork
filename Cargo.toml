@@ -20,6 +20,7 @@ clap = { version = "3.1.0", features = ["derive"] }
 rand = "0.8.5"
 dovepipe = "0.1.0"
 ip_rfc = "0.1.0"
+whoami = "1.2.1"
 
 [features]
 # sim_wan = []
