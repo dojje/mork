@@ -2,7 +2,7 @@ use std::{
     error,
     error::Error,
     fmt,
-    fs::{self, File},
+    fs::{self, create_dir_all, File},
     io::Write,
     net::SocketAddr,
     path::Path,
@@ -117,7 +117,18 @@ fn get_config() -> Config {
         let config = Config::new();
 
         let confing_str = toml::to_string(&config).unwrap();
-        let mut file = File::create(&config_filename).unwrap();
+        let mut file = match File::create(&config_filename) {
+            Ok(file) => file,
+            Err(_) => {
+                #[cfg(target_os = "windows")]
+                // Create directory for config
+                {
+                    create_dir_all(Path::new(&config_filename).parent().unwrap()).unwrap();
+                }
+                // Redo this
+                return get_config();
+            }
+        };
 
         // Write a &str in the file (ignoring the result).
         write!(&mut file, "{}", confing_str).unwrap();
