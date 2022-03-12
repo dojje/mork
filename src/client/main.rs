@@ -31,7 +31,16 @@ use crate::{recieving::reciever, sending::sender};
 mod recieving;
 mod sending;
 
-const CONFIG_FILENAME: &'static str = "filesender_data.toml";
+fn get_config_filename() -> &'static str {
+    #[cfg(target_os = "linux")]
+    let config_home = var("XDG_CONFIG_HOME")
+        .or_else(|_| var("HOME").map(|home|format!("{}/.mork_config", home)));
+    #[cfg(target_os = "windows")]
+    let config_home = "C:\\Program Files\\Common Files\\mork_config.toml";
+
+    config_home
+}
+
 // TODO: longer codes
 // TODO: Check for enough disk space
 // TODO: Function for getting new server list
@@ -46,7 +55,7 @@ struct Config {
 impl Config {
     fn new() -> Self {
         Self {
-            server_ips: vec!["127.0.0.1:47335".to_string()],
+            server_ips: vec!["92.244.2.150:47335".to_string()],
         }
     }
 }
@@ -98,19 +107,20 @@ async fn punch_hole(sock: &UdpSocket, addr: SocketAddr) -> Result<(), Box<dyn Er
 }
 
 fn get_config() -> Config {
+    let config_filename = get_config_filename();
     // Check if settings file exists
-    if !Path::new(CONFIG_FILENAME).exists() {
+    if !Path::new(config_filename).exists() {
         let config = Config::new();
 
         let confing_str = toml::to_string(&config).unwrap();
-        let mut file = File::create(CONFIG_FILENAME).unwrap();
+        let mut file = File::create(config_filename).unwrap();
 
         // Write a &str in the file (ignoring the result).
         write!(&mut file, "{}", confing_str).unwrap();
     }
 
     let contents =
-        fs::read_to_string(CONFIG_FILENAME).expect("Something went wrong reading the appdata file");
+        fs::read_to_string(config_filename).expect("Something went wrong reading the appdata file");
 
     let config: Config = toml::from_str(contents.as_str()).unwrap();
 
@@ -179,7 +189,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let code = match args.code {
                 Some(code) => code,
                 None => {
-                    eprintln!("code must be set");
+                    eprintln!("code or input file must be set");
                     process::exit(0);
                 }
             };

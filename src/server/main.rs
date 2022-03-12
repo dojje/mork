@@ -101,7 +101,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Create socket for recieving all messages
     let sock = UdpSocket::bind("0.0.0.0:47335").await?;
 
-    info!("server ready");
+    info!("server ready on port 47335");
     loop {
         // Recieve message
         let mut buf = [0u8; 8192];
