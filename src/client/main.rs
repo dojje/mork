@@ -21,14 +21,15 @@ use log::{info, LevelFilter};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use shared::messages::{
-    ip_for_code::IpForCode, recieving_ip::RecievingIp, you_have_file::YouHaveFile, Message, ServerMsg,
+    ip_for_code::IpForCode, recieving_ip::RecievingIp, you_have_file::YouHaveFile, Message,
+    ServerMsg,
 };
 use tokio::{net::UdpSocket, time};
 
-use crate::{sending::sender, recieving::reciever};
+use crate::{recieving::reciever, sending::sender};
 
-mod sending;
 mod recieving;
+mod sending;
 
 const CONFIG_FILENAME: &'static str = "filesender_data.toml";
 // TODO: longer codes

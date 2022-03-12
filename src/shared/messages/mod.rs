@@ -12,6 +12,7 @@ pub mod you_have_file;
 pub enum ClientMsg {
     HaveFile(have_file::HaveFile),
     IHaveCode(i_have_code::IHaveCode),
+    HolePunch,
     None,
 }
 

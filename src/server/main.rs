@@ -5,17 +5,18 @@ use log::{info, LevelFilter};
 use rand::Rng;
 use shared::{
     messages::{
-        have_file::HaveFile, i_have_code::IHaveCode, ip_for_code::IpForCode, recieving_ip::RecievingIp,
-        you_have_file::YouHaveFile, ClientMsg, Message,
+        have_file::HaveFile, i_have_code::IHaveCode, ip_for_code::IpForCode,
+        recieving_ip::RecievingIp, you_have_file::YouHaveFile, ClientMsg, Message,
     },
     Transfer,
 };
-use std::{char, collections::HashMap, error::Error, io::Write};
+use std::{char, collections::HashMap, error::Error, io::Write, net::SocketAddr};
 use tokio::net::UdpSocket;
 
 const CODE_CHARS: &'static [char] = &[
-    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S',
-    'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
+    // Am not using O and 0 because of confusion
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T',
+    'U', 'V', 'W', 'X', 'Y', 'Z', '1', '2', '3', '4', '5', '6', '7', '8', '9',
 ];
 
 fn get_msg_from_raw(raw: &[u8]) -> Result<ClientMsg, &'static str> {
@@ -23,24 +24,25 @@ fn get_msg_from_raw(raw: &[u8]) -> Result<ClientMsg, &'static str> {
         Ok(ClientMsg::HaveFile(have_file))
     } else if let Ok(i_have_code) = IHaveCode::from_raw(raw) {
         Ok(ClientMsg::IHaveCode(i_have_code))
-    } else if raw == &[0u8] {
-        Ok(ClientMsg::None)
+    } else if raw == &[255u8] {
+        Ok(ClientMsg::HolePunch)
     } else {
-        Err("could not make into any message")
+        Ok(ClientMsg::None)
     }
 }
 
-fn new_code<T>(code_map: &HashMap<String, T>) -> Result<String, Box<dyn Error>> {
-    let mut rng = rand::thread_rng();
-    let mut code = String::new();
-
-    for _ in 0..=4 {
-        let char_i = rng.gen_range(0..CODE_CHARS.len());
-        code.push(CODE_CHARS[char_i]);
-    }
-
+fn new_code(code_map: &HashMap<String, Transfer>) -> Result<String, Box<dyn Error>> {
     loop {
-        if !code_map.contains_key(&code) {
+        // Generate code
+        let mut rng = rand::thread_rng();
+        let mut code = String::new();
+        for _ in 0..=4 {
+            let char_i = rng.gen_range(0..CODE_CHARS.len());
+            code.push(CODE_CHARS[char_i]);
+        }
+
+        // use code
+        if !code_map.contains_key(&code) || code_map.get(&code).unwrap().has_expired() {
             return Ok(code);
         }
     }
@@ -65,6 +67,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Make hashmap for every transfer
     let mut code_map: HashMap<String, Transfer> = HashMap::new();
+    let mut addr_map: HashMap<SocketAddr, String> = HashMap::new(); // Addr map for keeping track of all sending clients
 
     // Create socket for recieving all messages
     let sock = UdpSocket::bind("0.0.0.0:47335").await?;
@@ -84,7 +87,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         match msg {
             ClientMsg::HaveFile(have_file) => {
-                let code = new_code(&code_map)?;
+                let code = new_code(&mut code_map)?;
 
                 let resp = YouHaveFile::new(code.to_string());
 
@@ -96,7 +99,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     src, have_file.file_name, code
                 );
                 let transfer = Transfer::new(src, have_file.file_name, have_file.file_len);
-                code_map.insert(code, transfer);
+                code_map.insert(code.clone(), transfer);
+                addr_map.insert(src, code);
             }
 
             ClientMsg::IHaveCode(have_code) => {
@@ -119,6 +123,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 sock.send_to(resp_raw.as_slice(), src).await?;
             }
             ClientMsg::None => {}
+            ClientMsg::HolePunch => {
+                let code = addr_map.get(&src);
+                let transfer = code_map.get_mut(code.unwrap()).unwrap();
+
+                transfer.update();
+            }
         }
     }
 }

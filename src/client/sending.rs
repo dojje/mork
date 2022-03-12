@@ -45,6 +45,7 @@ pub async fn sender<'a>(
     // Wait for recieving ip from server
     loop {
         let mut buf = [0; 508];
+        // Sends holepunch msgs until it gets any recievers ip
         let amt = send_unil_recv(&sock, &[255u8], &server_addr, &mut buf, 1000).await?;
         let buf = &buf[0..amt];
 
