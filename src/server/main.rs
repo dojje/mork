@@ -10,8 +10,10 @@ use shared::{
     },
     Transfer,
 };
-use std::{char, collections::HashMap, error::Error, io::Write, net::SocketAddr};
-use tokio::net::UdpSocket;
+use std::{
+    char, collections::HashMap, error::Error, io::Write, net::SocketAddr, sync::Arc, time::Duration,
+};
+use tokio::{net::UdpSocket, sync::Mutex, time};
 
 const CODE_CHARS: &'static [char] = &[
     // Am not using O and 0 because of confusion
@@ -31,7 +33,9 @@ fn get_msg_from_raw(raw: &[u8]) -> Result<ClientMsg, &'static str> {
     }
 }
 
-fn new_code(code_map: &HashMap<String, Transfer>) -> Result<String, Box<dyn Error>> {
+async fn new_code(
+    code_map: &Arc<Mutex<HashMap<String, Transfer>>>,
+) -> Result<String, Box<dyn Error>> {
     loop {
         // Generate code
         let mut rng = rand::thread_rng();
@@ -42,10 +46,24 @@ fn new_code(code_map: &HashMap<String, Transfer>) -> Result<String, Box<dyn Erro
         }
 
         // use code
+        let code_map = code_map.lock().await;
         if !code_map.contains_key(&code) || code_map.get(&code).unwrap().has_expired() {
             return Ok(code);
         }
     }
+}
+
+async fn remove_expired(code_map: &Arc<Mutex<HashMap<String, Transfer>>>) {
+    let mut code_map = code_map.lock().await;
+
+    code_map.retain(|code, v| {
+        if v.has_expired() {
+            info!("removing code {}", code);
+            false
+        } else {
+            true
+        }
+    });
 }
 
 #[tokio::main]
@@ -66,8 +84,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .init();
 
     // Make hashmap for every transfer
-    let mut code_map: HashMap<String, Transfer> = HashMap::new();
-    let mut addr_map: HashMap<SocketAddr, String> = HashMap::new(); // Addr map for keeping track of all sending clients
+    let code_map: Arc<Mutex<HashMap<String, Transfer>>> = Arc::new(Mutex::new(HashMap::new()));
+    let addr_map: Arc<Mutex<HashMap<SocketAddr, String>>> = Arc::new(Mutex::new(HashMap::new())); // Addr map for keeping track of all sending clients
+
+    let code_map_ = code_map.clone();
+    tokio::spawn(async move {
+        let code_map = code_map_;
+
+        loop {
+            remove_expired(&code_map).await;
+
+            time::sleep(Duration::from_secs(60)).await;
+        }
+    });
 
     // Create socket for recieving all messages
     let sock = UdpSocket::bind("0.0.0.0:47335").await?;
@@ -87,7 +116,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         match msg {
             ClientMsg::HaveFile(have_file) => {
-                let code = new_code(&mut code_map)?;
+                let code = new_code(&code_map).await?;
 
                 let resp = YouHaveFile::new(code.to_string());
 
@@ -99,13 +128,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     src, have_file.file_name, code
                 );
                 let transfer = Transfer::new(src, have_file.file_name, have_file.file_len);
-                code_map.insert(code.clone(), transfer);
-                addr_map.insert(src, code);
+                code_map.lock().await.insert(code.clone(), transfer);
+                addr_map.lock().await.insert(src, code);
             }
 
             ClientMsg::IHaveCode(have_code) => {
-                let transfer = match code_map.get(have_code.code.to_uppercase().as_str()) {
-                    Some(transfer) => transfer,
+                let code_map_ = code_map.lock().await;
+                let transfer = match code_map_.get(have_code.code.to_uppercase().as_str()) {
+                    Some(transfer) => transfer.clone(),
                     None => continue,
                 };
                 info!(
@@ -124,10 +154,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
             ClientMsg::None => {}
             ClientMsg::HolePunch => {
-                let code = addr_map.get(&src);
-                let transfer = code_map.get_mut(code.unwrap()).unwrap();
-
-                transfer.update();
+                let addr_map = addr_map.lock().await;
+                let code = addr_map.get(&src).unwrap();
+                code_map.lock().await.get_mut(code).unwrap().update();
             }
         }
     }
