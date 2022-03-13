@@ -2,7 +2,7 @@ use std::{
     error,
     error::Error,
     fmt,
-    fs::{self, create_dir_all, File},
+    fs::{self, File},
     io::Write,
     net::SocketAddr,
     path::Path,
@@ -12,6 +12,12 @@ use std::{
     time::Duration,
     vec,
 };
+
+#[cfg(target_os = "windows")]
+use std::fs::create_dir_all;
+
+#[cfg(target_os = "linux")]
+use std::env;
 
 use chrono::Local;
 use clap::Parser;
@@ -33,7 +39,7 @@ mod sending;
 
 fn get_config_filename() -> String {
     #[cfg(target_os = "linux")]
-    let config_home = var("XDG_CONFIG_HOME")
+    let config_home = env::var("XDG_CONFIG_HOME")
         .or_else(|_| var("HOME").map(|home| format!("{}/.mork_config", home)))
         .to_string();
     #[cfg(target_os = "windows")]
