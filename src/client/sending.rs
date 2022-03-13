@@ -64,7 +64,7 @@ pub async fn sender<'a>(
                 }
                 SendMethod::Confirm => todo!(),
                 SendMethod::Index => {
-                    send_file(&sock_send, file_name.as_str(), correct_ip)
+                    send_file(sock_send, file_name.as_str(), correct_ip)
                         .await
                         .expect("could not send file");
                 }
