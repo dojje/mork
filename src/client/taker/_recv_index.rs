@@ -147,7 +147,7 @@ pub async fn recv_file_index(
         .read(true)
         .write(true)
         .create(true)
-        .open("filesender_recv_index")?;
+        .open("temp_recv_index")?;
 
     // Populate file with 0:s
     index_file.set_len(recv_size / 500 / 8 + 1)?;
@@ -159,7 +159,7 @@ pub async fn recv_file_index(
         let mut first_data: Option<([u8;508], usize)> = None; 
 
         if !first {
-            let dropped = get_dropped("filesender_recv_index", recv_size)?;
+            let dropped = get_dropped("temp_recv_index", recv_size)?;
             debug!("dropped {} messages", dropped.len());
             for drop in &dropped {
                 debug!("dropped: {}", drop);
@@ -257,7 +257,7 @@ pub async fn recv_file_index(
         }
     };
 
-    remove_file("filesender_recv_index")?;
+    remove_file("temp_recv_index")?;
     Ok(())
 }
 
