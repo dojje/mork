@@ -5,7 +5,7 @@ use std::{
     sync::Arc,
 };
 
-use dovepipe::send_file;
+use dovepipe::{send_file, Source};
 use shared::messages::{
     have_file::HaveFile, recieving_ip::RecievingIp, you_have_file::YouHaveFile, Message,
 };
@@ -64,7 +64,7 @@ pub async fn sender<'a>(
                 }
                 SendMethod::Confirm => todo!(),
                 SendMethod::Index => {
-                    send_file(sock_send, file_name.as_str(), correct_ip)
+                    send_file(Source::SocketArc(sock_send), file_name.as_str(), correct_ip)
                         .await
                         .expect("could not send file");
                 }

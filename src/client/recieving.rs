@@ -10,7 +10,7 @@ use std::os::windows::prelude::FileExt;
 use std::{error::Error, fs::File, net::SocketAddr, sync::Arc};
 use tokio::net::UdpSocket;
 
-use dovepipe::{reciever::ProgressTracking, recv_file};
+use dovepipe::{reciever::ProgressTracking, recv_file, Source};
 
 use crate::{ensure_global_ip, punch_hole, recv, SendMethod};
 
@@ -59,7 +59,7 @@ pub async fn reciever(
         }
         SendMethod::Confirm => todo!(),
         SendMethod::Index => {
-            recv_file(&mut file, sock, ip, ProgressTracking::Memory).await?;
+            recv_file(&mut file, Source::SocketArc(sock), ip, ProgressTracking::Memory).await?;
         }
     }
 

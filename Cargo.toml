@@ -18,7 +18,7 @@ tokio = {version = "1", features = ["full"]}
 message-derive = {path = "message-derive"}
 clap = { version = "3.1.0", features = ["derive"] }
 rand = "0.8.5"
-dovepipe = {git = "https://github.com/dojje/dovepipe.git", branch = "size_sending", features = ["logging"]}
+dovepipe = {version = "0.1.2", features = ["logging"]}
 ip_rfc = "0.1.0"
 whoami = "1.2.1"
 
