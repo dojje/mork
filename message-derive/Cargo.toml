@@ -1,5 +1,5 @@
 [package]
-name = "message-derive"
+name = "mork-message-derive"
 version = "0.1.0"
 edition = "2021"
 
