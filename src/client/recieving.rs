@@ -49,6 +49,7 @@ pub async fn reciever(
         Some(filename) => filename,
         None => ip_for_code.file_name,
     };
+    println!("using filename: {}", filename);
     let mut file = File::create(filename).unwrap();
 
     info!("Recieving file...");
