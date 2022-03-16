@@ -1,4 +1,4 @@
-use message_derive::Message;
+use mork_message_derive::Message;
 use serde::{Deserialize, Serialize};
 
 use super::Message;

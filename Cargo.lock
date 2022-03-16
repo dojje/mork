@@ -285,18 +285,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "308cc39be01b73d0d18f82a0e7b2a3df85245f84af96fdddc5d202d27e47b86a"
 
 [[package]]
-name = "message-derive"
-version = "0.1.0"
-dependencies = [
- "bincode",
- "darling",
- "proc-macro2",
- "quote",
- "serde",
- "syn",
-]
-
-[[package]]
 name = "mio"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -331,12 +319,26 @@ dependencies = [
  "env_logger",
  "ip_rfc",
  "log",
- "message-derive",
+ "mork-message-derive",
  "rand",
  "serde",
  "tokio",
  "toml",
  "whoami",
+]
+
+[[package]]
+name = "mork-message-derive"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c65a1a6104194d1da081acd7cd3092cd754beb19feea5ef00a23531edb6b206a"
+dependencies = [
+ "bincode",
+ "darling",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "syn",
 ]
 
 [[package]]

@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use message_derive::Message;
+use mork_message_derive::Message;
 use serde::{Deserialize, Serialize};
 
 use crate::Transfer;

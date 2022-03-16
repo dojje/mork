@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use serde::{Deserialize, Serialize};
 
 use super::Message;
-use message_derive::Message;
+use mork_message_derive::Message;
 
 #[derive(Serialize, Deserialize, Message)]
 #[message(msg_code = 3)]
