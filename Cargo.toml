@@ -32,11 +32,11 @@ whoami = "1.2.1"
 # sim_wan = []
 
 [[bin]]
-name = "client"
+name = "mork"
 path = "src/client/main.rs"
 
 [[bin]]
-name = "server"
+name = "mork-server"
 path = "src/server/main.rs"
 
 [lib]
