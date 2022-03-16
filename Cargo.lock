@@ -152,9 +152,9 @@ dependencies = [
 
 [[package]]
 name = "dovepipe"
-version = "0.1.2"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b3455e488608121c648c998afa414c177f047e44888410b2553e397d227e9357"
+checksum = "ccf983ad3d1a3dbf7e5d0f4591eada07165ea4dbf65b63da77817083412dd665"
 dependencies = [
  "log",
  "tokio",

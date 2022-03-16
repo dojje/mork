@@ -59,7 +59,7 @@ pub async fn reciever(
         }
         SendMethod::Confirm => todo!(),
         SendMethod::Index => {
-            recv_file(&mut file, Source::SocketArc(sock), ip, ProgressTracking::Memory).await?;
+            recv_file(Source::SocketArc(sock), &mut file ,ip, ProgressTracking::Memory).await?;
         }
     }
 

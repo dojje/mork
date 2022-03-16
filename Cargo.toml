@@ -24,7 +24,7 @@ tokio = {version = "1", features = ["full"]}
 mork-message-derive = {version = "0.1.0"}
 clap = { version = "3.1.0", features = ["derive"] }
 rand = "0.8.5"
-dovepipe = {version = "0.1.2", features = ["logging"]}
+dovepipe = {version = "0.1.4", features = ["logging"]}
 ip_rfc = "0.1.0"
 whoami = "1.2.1"
 
