@@ -20,11 +20,17 @@ You will get a code from the server that you can give to the reciever.
 
 ### Cargo (Compiling it yourself)
 
+#### Stable
+
 You can install the binary from crates.io with cargo
 
 `cargo install mork`
 
-This will install the client.
+#### Experimental
+
+You can also install from the github repository by running this.
+
+`cargo install --git https://github.com/dojje/mork`
 
 ### Downloading directly
 
