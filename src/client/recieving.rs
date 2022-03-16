@@ -49,6 +49,12 @@ pub async fn reciever(
         Some(filename) => filename,
         None => ip_for_code.file_name,
     };
+    #[cfg(target_os = "windows")]
+    let filename = filename.replace("/", "\\");
+
+    #[cfg(target_os = "linux")]
+    let filename = filename.replace("\\", "/");
+    
     println!("using filename: {}", filename);
     let mut file = File::create(filename).unwrap();
 
