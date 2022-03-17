@@ -45,3 +45,11 @@ To add it to the path *which means to make it accessable anywhere* you need to p
 
 Then follow [this guide](https://medium.com/@kevinmarkvi/how-to-add-executables-to-your-path-in-windows-5ffa4ce61a53) on
 how to add an executable to the system path.
+
+## How it works
+
+When you send a file the program will contact the tracker server which keeps track of all the codes.
+The server will give you a code and store your ip.
+
+When somebody wants to recieve your file it contacts the server with a code.
+The server hands back your sender ip to the reciever and the file is sent p2p.
