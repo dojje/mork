@@ -155,7 +155,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
             ClientMsg::None => {}
             ClientMsg::HolePunch => {
                 let addr_map = addr_map.lock().await;
-                let code = addr_map.get(&src).unwrap();
+                let code = match addr_map.get(&src) {
+                    Some(c) => c,
+                    None => continue,
+                };
                 code_map.lock().await.get_mut(code).unwrap().update();
             }
         }
