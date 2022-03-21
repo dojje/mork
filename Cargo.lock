@@ -164,8 +164,7 @@ dependencies = [
 [[package]]
 name = "dovepipe"
 version = "0.1.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a093b170b29620f2b20abd4320f8c21508718bec96b5a2676b961d51532b3c1a"
+source = "git+https://github.com/dojje/dovepipe#f809cf718d072818f0a57da75a5ae6c7215a91af"
 dependencies = [
  "async-trait",
  "log",
