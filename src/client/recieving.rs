@@ -1,3 +1,5 @@
+use dovepipe::File;
+
 use log::info;
 use shared::{
     messages::{i_have_code::IHaveCode, ip_for_code::IpForCode, Message},
@@ -7,8 +9,8 @@ use shared::{
 #[cfg(target = "windows")]
 use std::os::windows::prelude::FileExt;
 
-use std::{error::Error, fs::File, net::SocketAddr, sync::Arc};
-use tokio::net::UdpSocket;
+use std::{error::Error, net::SocketAddr, sync::Arc};
+use tokio::{fs::remove_file, net::UdpSocket};
 
 use dovepipe::{reciever::ProgressTracking, recv_file, Source};
 
@@ -54,9 +56,9 @@ pub async fn reciever(
 
     #[cfg(target_os = "linux")]
     let filename = filename.replace("\\", "/");
-    
+
     println!("using filename: {}", filename);
-    let mut file = File::create(filename).unwrap();
+    let mut file = File::create(filename).await?;
 
     info!("Recieving file...");
 
@@ -66,9 +68,20 @@ pub async fn reciever(
         }
         SendMethod::Confirm => todo!(),
         SendMethod::Index => {
-            recv_file(Source::SocketArc(sock), &mut file ,ip, ProgressTracking::Memory).await?;
+            recv_file(
+                Source::SocketArc(sock),
+                &mut file,
+                ip,
+                ProgressTracking::File("mork_paging_file".to_string()),
+            )
+            .await
+            .expect("not able to send file");
+            // Apparently the `?` operator doesn't work on the line above
+            // This should be fixed i think
         }
     }
+
+    remove_file("mork_paging_file").await?;
 
     Ok(())
 }

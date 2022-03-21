@@ -12,6 +12,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-trait"
+version = "0.1.52"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "061a7acccaa286c011ddc30970520b98fa40e00c9d644633fb26b5fc63a265e3"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -152,10 +163,11 @@ dependencies = [
 
 [[package]]
 name = "dovepipe"
-version = "0.1.5"
+version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d0ea51a3fcf97c55da20cfad306cab3a9da771479980bbc5023721479be1782"
+checksum = "a093b170b29620f2b20abd4320f8c21508718bec96b5a2676b961d51532b3c1a"
 dependencies = [
+ "async-trait",
  "log",
  "tokio",
 ]
