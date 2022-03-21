@@ -2,7 +2,7 @@ use std::{
     error::{self, Error},
     fs::File,
     net::SocketAddr,
-    sync::Arc,
+    sync::Arc, path::Path,
 };
 
 use dovepipe::{send_file, Source};
@@ -17,23 +17,25 @@ use crate::{ensure_global_ip, send_unil_recv, SendMethod};
 // mod send_burst;
 // mod send_index;
 
-fn get_file_len(file_name: &str) -> Result<u64, Box<dyn error::Error>> {
-    let file = File::open(file_name)?;
+fn get_file_len(filepath: &Path) -> Result<u64, Box<dyn error::Error>> {
+    let file = File::open(filepath)?;
 
     Ok(file.metadata().unwrap().len())
 }
 
 pub async fn sender<'a>(
-    file_name: String,
+    filepath: &Path,
     sock: Arc<UdpSocket>,
     server_addr: SocketAddr,
     send_method: SendMethod,
 ) -> Result<(), Box<dyn Error>> {
-    let file_len = match get_file_len(&file_name) {
+    let file_len = match get_file_len(&filepath) {
         Ok(f) => f,
-        Err(_) => panic!("file {} doesn't exist", file_name),
+        Err(_) => panic!("file {} doesn't exist", filepath.to_str().unwrap()),
     };
-    let have_file = HaveFile::new(file_name.to_owned(), file_len);
+
+    let only_file_name = Path::new(&filepath).file_name().unwrap();
+    let have_file = HaveFile::new(only_file_name.to_str().unwrap().to_owned(), file_len);
 
     let mut buf = [0u8; 508];
     let amt = send_unil_recv(&sock, &have_file.to_raw(), &server_addr, &mut buf, 500).await?;
@@ -53,7 +55,7 @@ pub async fn sender<'a>(
         let recieving_ip = RecievingIp::from_raw(buf)?;
 
         let correct_ip = ensure_global_ip(recieving_ip.ip, &server_addr);
-        let file_name = file_name.clone();
+        let filename = filepath.to_str().unwrap().to_owned();
         let sock_send = sock.clone();
         let send_method = send_method.clone();
         tokio::spawn(async move {
@@ -66,7 +68,7 @@ pub async fn sender<'a>(
                 SendMethod::Confirm => todo!(),
                 SendMethod::Index => {
                     info!("got reciever");
-                    send_file(Source::SocketArc(sock_send), file_name.as_str(), correct_ip)
+                    send_file(Source::SocketArc(sock_send), filename.as_str(), correct_ip)
                         .await
                         .expect("could not send file");
                 }

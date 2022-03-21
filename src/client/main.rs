@@ -210,7 +210,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     match args.input {
         Some(input) => {
-            sender(input, sock, server_addr, SendMethod::Index).await?;
+            let filepath = Path::new(&input);
+            sender(filepath, sock, server_addr, SendMethod::Index).await?;
         }
         None => {
             let code = match args.code {
