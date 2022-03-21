@@ -29,7 +29,7 @@ ip_rfc = "0.1.0"
 whoami = "1.2.1"
 
 [features]
-# sim_wan = []
+debug = []
 
 [[bin]]
 name = "mork"

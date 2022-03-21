@@ -173,6 +173,11 @@ impl fmt::Display for NotRightAmountError {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     // init log
+    #[cfg(feature = "debug")]
+    let levelfilter = LevelFilter::Debug;
+    #[cfg(not(feature = "debug"))]
+    let levelfilter = LevelFilter::Info;
+
     Builder::new()
         .format(|buf, record| {
             writeln!(
@@ -183,7 +188,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 record.args()
             )
         })
-        .filter(None, LevelFilter::Info)
+        .filter(None, levelfilter)
         .init();
 
     // Read arguemts
