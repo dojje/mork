@@ -2,10 +2,11 @@ use std::{
     error::{self, Error},
     fs::File,
     net::SocketAddr,
-    sync::Arc, path::Path,
+    sync::Arc, path::Path, env,
 };
 
 use dovepipe::{send_file, Source};
+use flate2::{write::GzEncoder, Compression};
 use log::info;
 use shared::messages::{
     have_file::HaveFile, recieving_ip::RecievingIp, you_have_file::YouHaveFile, Message,
@@ -34,14 +35,35 @@ pub async fn sender<'a>(
         Err(_) => panic!("file {} doesn't exist", filepath.to_str().unwrap()),
     };
 
-    let only_file_name = Path::new(&filepath).file_name().unwrap();
-    let have_file = HaveFile::new(only_file_name.to_str().unwrap().to_owned(), file_len);
+    // Compress it into a gzip
+    // The gzip should contain one item
 
+    // Create encoder
+    let tar_filepath = env::temp_dir().join("mork_tmp.tar.gz");
+    let tar_gz = File::create(&tar_filepath)?;
+    let enc = GzEncoder::new(tar_gz, Compression::default());
+    let mut tar = tar::Builder::new(enc);
+
+    // Create folder for gzip-ing
+    let mork_data_folder = "mork_data_folder";
+
+    // Copy file to data folder
+    std::fs::copy(filepath, mork_data_folder)?;
+    
+    // Add things in data folder to tar archive
+    tar.append_dir_all("/", mork_data_folder)?;
+
+    // Send the sending msg to the server
+    // Get only the file name of the thing to send
+    let only_file_name = "mork_transfer.tar.gz";
+    // Send `HaveFile` msg
+    let have_file = HaveFile::new(only_file_name.to_owned(), file_len);
     let mut buf = [0u8; 508];
+    // Recieve a `YouHaveFile` message
     let amt = send_unil_recv(&sock, &have_file.to_raw(), &server_addr, &mut buf, 500).await?;
     let buf = &buf[0..amt];
     let you_have_file = YouHaveFile::from_raw(&buf)?;
-
+    // Extract code from the message
     let code = you_have_file.code;
     println!("Code for recv: {}", &code);
 
@@ -54,11 +76,13 @@ pub async fn sender<'a>(
 
         let recieving_ip = RecievingIp::from_raw(buf)?;
 
+        // Copy stuff
+        let tar_filepath = tar_filepath.clone();
         let correct_ip = ensure_global_ip(recieving_ip.ip, &server_addr);
-        let filename = filepath.to_str().unwrap().to_owned();
         let sock_send = sock.clone();
         let send_method = send_method.clone();
         tokio::spawn(async move {
+            let tar_filepath = tar_filepath.clone();
             match &send_method {
                 SendMethod::Burst => {
                     // send_file_burst(sock_send, file_name, correct_ip)
@@ -68,7 +92,7 @@ pub async fn sender<'a>(
                 SendMethod::Confirm => todo!(),
                 SendMethod::Index => {
                     info!("got reciever");
-                    send_file(Source::SocketArc(sock_send), filename.as_str(), correct_ip)
+                    send_file(Source::SocketArc(sock_send), tar_filepath.as_path(), correct_ip)
                         .await
                         .expect("could not send file");
                 }

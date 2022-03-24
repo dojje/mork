@@ -27,6 +27,8 @@ rand = "0.8.5"
 dovepipe = {version = "0.1.6", features = ["logging"], git = "https://github.com/dojje/dovepipe"}
 ip_rfc = "0.1.0"
 whoami = "1.2.1"
+flate2 = "1.0.22"
+tar = "0.4.38"
 
 [features]
 debug = []
