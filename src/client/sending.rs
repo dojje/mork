@@ -31,11 +31,6 @@ pub async fn sender<'a>(
     send_method: SendMethod,
 ) -> Result<(), Box<dyn Error>> {
     debug!("filepath: {}", filepath.display());
-    let file_len = match get_file_len(&filepath) {
-        Ok(f) => f,
-        Err(_) => panic!("file {} doesn't exist", filepath.to_str().unwrap()),
-    };
-
     // Compress it into a gzip
     // The gzip should contain one item
 
@@ -50,18 +45,18 @@ pub async fn sender<'a>(
     // Add data to tarball
     debug!("adding data from data folder to gzip");
     if filepath.is_dir() {
-        tar.append_dir_all(".", filepath)?;
+        tar.append_dir_all("lawl", filepath)?;
     } else {
         tar.append_path(filepath)?;
     }
     
-    tar.finish()?;
+    // tar.finish()?;
 
     // Send the sending msg to the server
     // Get only the file name of the thing to send
     let only_file_name = TRANSFER_FILENAME;
     // Send `HaveFile` msg
-    let have_file = HaveFile::new(only_file_name.to_owned(), file_len);
+    let have_file = HaveFile::new(only_file_name.to_owned(), 200);
     let mut buf = [0u8; 508];
     // Recieve a `YouHaveFile` message
     let amt = send_unil_recv(&sock, &have_file.to_raw(), &server_addr, &mut buf, 500).await?;
