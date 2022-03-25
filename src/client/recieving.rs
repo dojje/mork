@@ -1,5 +1,8 @@
-use dovepipe::File;
+use dovepipe::File as AsyncFile;
+use tar::Archive;
+use std::fs::File as StdFile;
 
+use flate2::read::GzDecoder;
 use log::info;
 use shared::{
     messages::{i_have_code::IHaveCode, ip_for_code::IpForCode, Message},
@@ -14,7 +17,7 @@ use tokio::{fs::remove_file, net::UdpSocket};
 
 use dovepipe::{reciever::ProgressTracking, recv_file, Source};
 
-use crate::{ensure_global_ip, punch_hole, recv, SendMethod};
+use crate::{ensure_global_ip, punch_hole, recv, SendMethod, TRANSFER_FILENAME};
 
 // mod recv_burst;
 // mod recv_index;
@@ -47,18 +50,13 @@ pub async fn reciever(
 
     // Use custom output if specified
     // Else use the filename provided by the server
-    let filename = match output {
+    // TODO: Remove filename from server
+    let _filename = match output {
         Some(filename) => filename,
         None => ip_for_code.file_name,
     };
-    #[cfg(target_os = "windows")]
-    let filename = filename.replace("/", "\\");
 
-    #[cfg(target_os = "linux")]
-    let filename = filename.replace("\\", "/");
-
-    println!("using filename: {}", filename);
-    let mut file = File::create(filename).await?;
+    let mut file = AsyncFile::create(TRANSFER_FILENAME).await?;
 
     info!("Recieving file...");
 
@@ -78,6 +76,11 @@ pub async fn reciever(
             .expect("not able to send file");
             // Apparently the `?` operator doesn't work on the line above
             // This should be fixed i think
+
+            let tar_gz = StdFile::open(TRANSFER_FILENAME)?;
+            let tar = GzDecoder::new(tar_gz);
+            let mut archive = Archive::new(tar);
+            archive.unpack(".")?;
         }
     }
 

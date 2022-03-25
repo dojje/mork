@@ -170,6 +170,8 @@ impl fmt::Display for NotRightAmountError {
     }
 }
 
+const TRANSFER_FILENAME: &str = &"mork_transfer.tar.gz";
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     // init log

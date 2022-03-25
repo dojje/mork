@@ -13,7 +13,7 @@ use shared::messages::{
 };
 use tokio::net::UdpSocket;
 
-use crate::{ensure_global_ip, send_unil_recv, SendMethod};
+use crate::{ensure_global_ip, send_unil_recv, SendMethod, TRANSFER_FILENAME};
 
 // mod send_burst;
 // mod send_index;
@@ -55,7 +55,7 @@ pub async fn sender<'a>(
 
     // Send the sending msg to the server
     // Get only the file name of the thing to send
-    let only_file_name = "mork_transfer.tar.gz";
+    let only_file_name = TRANSFER_FILENAME;
     // Send `HaveFile` msg
     let have_file = HaveFile::new(only_file_name.to_owned(), file_len);
     let mut buf = [0u8; 508];
