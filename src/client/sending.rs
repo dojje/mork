@@ -1,13 +1,13 @@
 use std::{
     error::{self, Error},
-    fs::File,
+    fs::{File},
     net::SocketAddr,
     sync::Arc, path::Path, env,
 };
 
 use dovepipe::{send_file, Source};
 use flate2::{write::GzEncoder, Compression};
-use log::info;
+use log::{info, debug};
 use shared::messages::{
     have_file::HaveFile, recieving_ip::RecievingIp, you_have_file::YouHaveFile, Message,
 };
@@ -30,6 +30,7 @@ pub async fn sender<'a>(
     server_addr: SocketAddr,
     send_method: SendMethod,
 ) -> Result<(), Box<dyn Error>> {
+    debug!("filepath: {}", filepath.display());
     let file_len = match get_file_len(&filepath) {
         Ok(f) => f,
         Err(_) => panic!("file {} doesn't exist", filepath.to_str().unwrap()),
@@ -39,19 +40,22 @@ pub async fn sender<'a>(
     // The gzip should contain one item
 
     // Create encoder
+    debug!("making tar.gzip file");
     let tar_filepath = env::temp_dir().join("mork_tmp.tar.gz");
     let tar_gz = File::create(&tar_filepath)?;
     let enc = GzEncoder::new(tar_gz, Compression::default());
     let mut tar = tar::Builder::new(enc);
+    debug!("made gzip encoder");
 
-    // Create folder for gzip-ing
-    let mork_data_folder = "mork_data_folder";
-
-    // Copy file to data folder
-    std::fs::copy(filepath, mork_data_folder)?;
+    // Add data to tarball
+    debug!("adding data from data folder to gzip");
+    if filepath.is_dir() {
+        tar.append_dir_all(".", filepath)?;
+    } else {
+        tar.append_path(filepath)?;
+    }
     
-    // Add things in data folder to tar archive
-    tar.append_dir_all("/", mork_data_folder)?;
+    tar.finish()?;
 
     // Send the sending msg to the server
     // Get only the file name of the thing to send
