@@ -13,7 +13,7 @@ use shared::{
 use std::os::windows::prelude::FileExt;
 
 use std::{error::Error, net::SocketAddr, sync::Arc};
-use tokio::{net::UdpSocket};
+use tokio::{net::UdpSocket, fs::remove_file};
 
 use dovepipe::{reciever::ProgressTracking, recv_file, Source};
 
@@ -81,6 +81,8 @@ pub async fn reciever(
             let tar = GzDecoder::new(tar_gz);
             let mut archive = Archive::new(tar);
             archive.unpack(".")?;
+
+            remove_file(TRANSFER_FILENAME).await?;
         }
     }
 
