@@ -13,7 +13,7 @@ use shared::{
 use std::os::windows::prelude::FileExt;
 
 use std::{error::Error, net::SocketAddr, sync::Arc};
-use tokio::{fs::remove_file, net::UdpSocket};
+use tokio::{net::UdpSocket};
 
 use dovepipe::{reciever::ProgressTracking, recv_file, Source};
 
@@ -83,8 +83,6 @@ pub async fn reciever(
             archive.unpack(".")?;
         }
     }
-
-    remove_file("mork_paging_file").await?;
 
     Ok(())
 }
