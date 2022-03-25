@@ -1,28 +1,24 @@
 use std::{
-    error::{self, Error},
+    error::{Error},
     fs::{File},
     net::SocketAddr,
     sync::Arc, path::Path, env,
 };
 
 use dovepipe::{send_file, Source};
-use flate2::{write::GzEncoder, Compression};
 use log::{info, debug};
 use shared::messages::{
     have_file::HaveFile, recieving_ip::RecievingIp, you_have_file::YouHaveFile, Message,
 };
 use tokio::net::UdpSocket;
 
+use flate2::write::GzEncoder;
+use flate2::Compression;
+
 use crate::{ensure_global_ip, send_unil_recv, SendMethod, TRANSFER_FILENAME};
 
 // mod send_burst;
 // mod send_index;
-
-fn get_file_len(filepath: &Path) -> Result<u64, Box<dyn error::Error>> {
-    let file = File::open(filepath)?;
-
-    Ok(file.metadata().unwrap().len())
-}
 
 pub async fn sender<'a>(
     filepath: &Path,
@@ -35,22 +31,24 @@ pub async fn sender<'a>(
     // The gzip should contain one item
 
     // Create encoder
-    debug!("making tar.gzip file");
+    // Create the compressed file
     let tar_filepath = env::temp_dir().join("mork_tmp.tar.gz");
     let tar_gz = File::create(&tar_filepath)?;
-    let enc = GzEncoder::new(tar_gz, Compression::default());
-    let mut tar = tar::Builder::new(enc);
-    debug!("made gzip encoder");
+    
+    // Create the encoder
+    let mut enc = GzEncoder::new(tar_gz, Compression::default());
 
-    // Add data to tarball
-    debug!("adding data from data folder to gzip");
-    if filepath.is_dir() {
-        tar.append_dir_all("lawl", filepath)?;
-    } else {
+    {
+        let mut tar = tar::Builder::new(&mut enc);
+        debug!("made gzip encoder");
+
+        // Add data to tarball
+        debug!("adding data from data folder to tarball");
         tar.append_path(filepath)?;
     }
     
-    // tar.finish()?;
+    // Finish the gzip file
+    enc.finish()?;
 
     // Send the sending msg to the server
     // Get only the file name of the thing to send
