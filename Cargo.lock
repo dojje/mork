@@ -179,7 +179,7 @@ dependencies = [
 [[package]]
 name = "dovepipe"
 version = "0.1.6"
-source = "git+https://github.com/dojje/dovepipe#1a5e8c45a518e93e01c861b084ea692b70989599"
+source = "git+https://github.com/dojje/dovepipe#028f54fc56cee605609b6cfcb88c396ea30ca5b1"
 dependencies = [
  "async-trait",
  "log",
