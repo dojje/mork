@@ -56,7 +56,7 @@ pub async fn reciever(
         None => ip_for_code.file_name,
     };
 
-    let mut file = AsyncFile::create(TRANSFER_FILENAME).await?;
+    let file = AsyncFile::create(TRANSFER_FILENAME).await?;
 
     info!("Recieving file...");
 
@@ -68,7 +68,7 @@ pub async fn reciever(
         SendMethod::Index => {
             recv_file(
                 Source::SocketArc(sock),
-                &mut file,
+                file,
                 ip,
                 ProgressTracking::File("mork_paging_file".to_string()),
             )
