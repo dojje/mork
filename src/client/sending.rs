@@ -2,7 +2,7 @@ use std::{
     error::{Error},
     fs::{File},
     net::SocketAddr,
-    sync::Arc, path::Path, env,
+    sync::Arc, path::Path,
 };
 
 use dovepipe::{send_file, Source};
@@ -32,7 +32,7 @@ pub async fn sender<'a>(
 
     // Create encoder
     // Create the compressed file
-    let tar_filepath = env::temp_dir().join("mork_tmp.tar.gz");
+    let tar_filepath = "mork_tmp.tar.gz";
     let tar_gz = File::create(&tar_filepath)?;
     
     // Create the encoder
@@ -89,7 +89,7 @@ pub async fn sender<'a>(
                 SendMethod::Confirm => todo!(),
                 SendMethod::Index => {
                     info!("got reciever");
-                    send_file(Source::SocketArc(sock_send), tar_filepath.as_path(), correct_ip)
+                    send_file(Source::SocketArc(sock_send), Path::new(tar_filepath), correct_ip)
                         .await
                         .expect("could not send file");
                 }
