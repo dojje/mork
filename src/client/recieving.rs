@@ -40,7 +40,6 @@ pub async fn reciever(
     let ip_for_code = IpForCode::from_raw(buf)?;
     let ip = ensure_global_ip(ip_for_code.ip, &server_addr);
     info!("file name: {}", &ip_for_code.file_name);
-    info!("file length: {}", &ip_for_code.file_len);
     info!("other ip: {}", &ip);
 
     // TODO Check if file fits on disk

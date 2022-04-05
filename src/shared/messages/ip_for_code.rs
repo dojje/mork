@@ -12,7 +12,6 @@ use super::Message;
 pub struct IpForCode {
     pub ip: SocketAddr,
     pub file_name: String,
-    pub file_len: u64,
 }
 
 impl IpForCode {
@@ -20,7 +19,6 @@ impl IpForCode {
         Self {
             ip: transfer.file_haver,
             file_name: transfer.file_name,
-            file_len: transfer.file_len,
         }
     }
 }

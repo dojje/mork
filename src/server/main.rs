@@ -127,7 +127,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     "client from {} is ready to send {} with code {}",
                     src, have_file.file_name, code
                 );
-                let transfer = Transfer::new(src, have_file.file_name, have_file.file_len);
+                let transfer = Transfer::new(src, have_file.file_name);
                 code_map.lock().await.insert(code.clone(), transfer);
                 addr_map.lock().await.insert(src, code);
             }

@@ -63,7 +63,6 @@ pub async fn sender<'a>(
             .unwrap()
             .to_string_lossy()
             .to_string(),
-        200,
     );
     let mut buf = [0u8; 508];
     // Recieve a `YouHaveFile` message
