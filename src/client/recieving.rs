@@ -1,6 +1,6 @@
 use dovepipe::File as AsyncFile;
-use tar::Archive;
 use std::fs::File as StdFile;
+use tar::Archive;
 
 use flate2::read::GzDecoder;
 use log::info;
@@ -13,7 +13,7 @@ use shared::{
 use std::os::windows::prelude::FileExt;
 
 use std::{error::Error, net::SocketAddr, sync::Arc};
-use tokio::{net::UdpSocket, fs::remove_file};
+use tokio::{fs::remove_file, net::UdpSocket};
 
 use dovepipe::{reciever::ProgressTracking, recv_file, Source};
 

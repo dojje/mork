@@ -97,6 +97,9 @@ struct Args {
 
     #[clap(short, long)]
     output: Option<String>,
+
+    #[clap(short, long)]
+    compression: bool,
 }
 
 fn _get_msg_from_raw(raw: &[u8]) -> Result<ServerMsg, &'static str> {
@@ -213,7 +216,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     match args.input {
         Some(input) => {
             let filepath = Path::new(&input);
-            sender(filepath, sock, server_addr, SendMethod::Index).await?;
+            sender(
+                filepath,
+                sock,
+                server_addr,
+                SendMethod::Index,
+                args.compression,
+            )
+            .await?;
         }
         None => {
             let code = match args.code {

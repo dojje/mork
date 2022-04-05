@@ -1,12 +1,7 @@
-use std::{
-    error::{Error},
-    fs::{File},
-    net::SocketAddr,
-    sync::Arc, path::Path,
-};
+use std::{error::Error, fs::File, net::SocketAddr, path::Path, sync::Arc};
 
 use dovepipe::{send_file, Source};
-use log::{info, debug};
+use log::{debug, info};
 use shared::messages::{
     have_file::HaveFile, recieving_ip::RecievingIp, you_have_file::YouHaveFile, Message,
 };
@@ -25,36 +20,51 @@ pub async fn sender<'a>(
     sock: Arc<UdpSocket>,
     server_addr: SocketAddr,
     send_method: SendMethod,
+    compression: bool,
 ) -> Result<(), Box<dyn Error>> {
     debug!("filepath: {}", filepath.display());
-    // Compress it into a gzip
-    // The gzip should contain one item
 
-    // Create encoder
-    // Create the compressed file
-    let tar_filepath = "mork_tmp.tar.gz";
-    let tar_gz = File::create(&tar_filepath)?;
-    
-    // Create the encoder
-    let mut enc = GzEncoder::new(tar_gz, Compression::default());
+    if compression {
+        // Compress it into a gzip
+        // The gzip should contain one item
 
-    {
-        let mut tar = tar::Builder::new(&mut enc);
-        debug!("made gzip encoder");
+        // Create encoder
+        // Create the compressed file
+        let tar_gz = File::create(&TRANSFER_FILENAME)?;
 
-        // Add data to tarball
-        debug!("adding data from data folder to tarball");
-        tar.append_path(filepath)?;
+        // Create the encoder
+        let mut enc = GzEncoder::new(tar_gz, Compression::default());
+
+        {
+            let mut tar = tar::Builder::new(&mut enc);
+            debug!("made gzip encoder");
+
+            // Add data to tarball
+            debug!("adding data from data folder to tarball");
+            tar.append_path(filepath)?;
+        }
+        // Finish the gzip file
+        enc.finish()?;
     }
-    
-    // Finish the gzip file
-    enc.finish()?;
 
     // Send the sending msg to the server
     // Get only the file name of the thing to send
-    let only_file_name = TRANSFER_FILENAME;
+    // Get the file name of the thing to send
+    let only_file_name = if compression {
+        Path::new(TRANSFER_FILENAME)
+    } else {
+        filepath
+    }.to_owned();
+
     // Send `HaveFile` msg
-    let have_file = HaveFile::new(only_file_name.to_owned(), 200);
+    let have_file = HaveFile::new(
+        only_file_name
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .to_string(),
+        200,
+    );
     let mut buf = [0u8; 508];
     // Recieve a `YouHaveFile` message
     let amt = send_unil_recv(&sock, &have_file.to_raw(), &server_addr, &mut buf, 500).await?;
@@ -74,12 +84,11 @@ pub async fn sender<'a>(
         let recieving_ip = RecievingIp::from_raw(buf)?;
 
         // Copy stuff
-        let tar_filepath = tar_filepath.clone();
         let correct_ip = ensure_global_ip(recieving_ip.ip, &server_addr);
         let sock_send = sock.clone();
         let send_method = send_method.clone();
+        let only_file_name_ = only_file_name.clone();
         tokio::spawn(async move {
-            let tar_filepath = tar_filepath.clone();
             match &send_method {
                 SendMethod::Burst => {
                     // send_file_burst(sock_send, file_name, correct_ip)
@@ -89,9 +98,13 @@ pub async fn sender<'a>(
                 SendMethod::Confirm => todo!(),
                 SendMethod::Index => {
                     info!("got reciever");
-                    send_file(Source::SocketArc(sock_send), Path::new(tar_filepath), correct_ip)
-                        .await
-                        .expect("could not send file");
+                    send_file(
+                        Source::SocketArc(sock_send),
+                        &only_file_name_,
+                        correct_ip,
+                    )
+                    .await
+                    .expect("could not send file");
                 }
             }
         });
