@@ -11,8 +11,6 @@ pub struct HaveFile {
 
 impl HaveFile {
     pub fn new(file_name: String) -> Self {
-        Self {
-            file_name,
-        }
+        Self { file_name }
     }
 }

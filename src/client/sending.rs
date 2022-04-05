@@ -54,7 +54,8 @@ pub async fn sender<'a>(
         Path::new(TRANSFER_FILENAME)
     } else {
         filepath
-    }.to_owned();
+    }
+    .to_owned();
 
     // Send `HaveFile` msg
     let have_file = HaveFile::new(
@@ -97,13 +98,9 @@ pub async fn sender<'a>(
                 SendMethod::Confirm => todo!(),
                 SendMethod::Index => {
                     info!("got reciever");
-                    send_file(
-                        Source::SocketArc(sock_send),
-                        &only_file_name_,
-                        correct_ip,
-                    )
-                    .await
-                    .expect("could not send file");
+                    send_file(Source::SocketArc(sock_send), &only_file_name_, correct_ip)
+                        .await
+                        .expect("could not send file");
                 }
             }
         });
