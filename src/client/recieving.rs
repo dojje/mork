@@ -49,13 +49,12 @@ pub async fn reciever(
 
     // Use custom output if specified
     // Else use the filename provided by the server
-    // TODO: Remove filename from server
-    let _filename = match output {
+    let output = match output {
         Some(filename) => filename,
-        None => ip_for_code.file_name,
+        None => ip_for_code.file_name.clone(),
     };
 
-    let file = AsyncFile::create(TRANSFER_FILENAME).await?;
+    let file = AsyncFile::create(output).await?;
 
     info!("Recieving file...");
 
@@ -76,12 +75,16 @@ pub async fn reciever(
             // Apparently the `?` operator doesn't work on the line above
             // This should be fixed i think
 
-            let tar_gz = StdFile::open(TRANSFER_FILENAME)?;
-            let tar = GzDecoder::new(tar_gz);
-            let mut archive = Archive::new(tar);
-            archive.unpack(".")?;
+            if &ip_for_code.file_name == TRANSFER_FILENAME {
+                // If it's recieving a compressed file it will detect that because it's called the same as TRANSFER_FILENAME
+                let tar_gz = StdFile::open(TRANSFER_FILENAME)?;
+                let tar = GzDecoder::new(tar_gz);
+                let mut archive = Archive::new(tar);
+                archive.unpack(".")?;
 
-            remove_file(TRANSFER_FILENAME).await?;
+                remove_file(TRANSFER_FILENAME).await?;
+            }
+
         }
     }
 

@@ -56,7 +56,6 @@ fn get_config_filename() -> String {
 // TODO: Check for enough disk space
 // TODO: Function for getting new server list
 // TODO: Function for updating program
-// TODO: Do not store file size in server
 
 #[derive(Serialize, Deserialize)]
 struct Config {
