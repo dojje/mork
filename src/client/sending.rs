@@ -1,4 +1,4 @@
-use std::{error::Error, fs::File, net::SocketAddr, path::Path, sync::Arc};
+use std::{error::{Error, self}, fs::File, net::SocketAddr, path::Path, sync::Arc, mem, io};
 
 use dovepipe::{send_file, Source};
 use log::{debug, info};
@@ -14,6 +14,55 @@ use crate::{ensure_global_ip, send_unil_recv, SendMethod, TRANSFER_FILENAME};
 
 // mod send_burst;
 // mod send_index;
+
+// **Metadata**
+// When sending it will send a big file with all of the files that should be sent.
+// The first few bytes is for the metadata
+// The first 8 bytes of the metadata is a u64 for when the actual data starts
+// The metadata contains info of what bytes are taken up by what files.
+// For example:
+// foo/bar.txt 0 - 4321
+// This means that the file bar.txt is under the folder foo and bar.txt takes up the bytes 1234 to 4321 of the big file.
+// The start byte is relative to where the data starts
+// It's actually not stores as a string like that
+// First it has the filename, then it has a null byte as a separator
+// Then it has the start byte as a u64
+// After that it has the end byte as a u64
+
+fn get_metadata(filepath: &Path) -> Result<Vec<u8>, io::Error> {
+    // Check if the filepath is a file
+    let mut output = Vec::new();
+
+    if filepath.is_file() {
+        let len = filepath.metadata().unwrap().len();
+        
+        // Add the filename
+        let mut file_name = filepath.to_str().unwrap().as_bytes().to_owned();
+        output.append(&mut file_name);
+
+        // Add the separator
+        output.push(0);
+
+        // Add start byte
+        let mut start_byte = 0u64.to_be_bytes().as_slice().to_owned();
+        output.append(&mut start_byte);
+
+        // Add end byte
+        let mut end_byte = len.to_be_bytes().as_slice().to_owned();
+        output.append(&mut end_byte);
+    } else {
+        // TODO Support sending directories
+        return Err(io::Error::new(io::ErrorKind::IsADirectory, "sending directories is currently not supported"));
+    }
+
+    // prepend data start
+    let data_start: u64 = output.len().try_into().unwrap();
+    let data_start = data_start.to_be_bytes().as_slice().to_owned();
+    
+    let final_output = [data_start, output].concat();
+
+    Ok(final_output)
+}
 
 pub async fn sender<'a>(
     filepath: &Path,

@@ -1,3 +1,4 @@
+#![feature(io_error_more)]
 use std::{
     error,
     error::Error,
