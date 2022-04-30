@@ -1,4 +1,6 @@
-# mork
+# mork (NOT USABLE)
+
+***The server for sending transfer info is not running***
 
 ### Application for sending files that is written in rust
 
